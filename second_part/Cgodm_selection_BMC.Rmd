@@ -6,7 +6,11 @@ author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph
   J. Mason, Matthew L. Holding, Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R.
   Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
 date: "`r format(Sys.time(), '%Y %B %d')`"
+always_allow_html: true
 output:
+  github_document:
+    toc: yes
+    toc_depth: 4
   html_notebook:
     theme: journal
     toc: yes
@@ -14,9 +18,6 @@ output:
   html_document:
     toc: yes
     df_print: paged
-  github_document:
-    toc: yes
-    toc_depth: 4
 ---
 
 # R analysis 
