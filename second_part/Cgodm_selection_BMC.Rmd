@@ -1,0 +1,1546 @@
+---
+title: R_SCRIPTS:Venom variation and evolution in populations of montane pitvipers (*Viperidae*\ :*Cerrophidion*).
+author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph I.
+  Grunwald, Jason M. Jones, Hector Franz-Chavez, Ivan T. Ahumada-Carrillo, Ricardo
+  Ramirez-Chaparro, Miguel Angel De la Torre-Loranca, Jason L. Strickland, Andrew
+  J. Mason, Matthew L. Holding, Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R.
+  Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  html_notebook:
+    theme: journal
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+  github_document:
+    toc: yes
+    toc_depth: 4
+---
+
+# R analysis 
+
+Read the data
+
+```{r}
+### install required packages
+libraries<- c('readr','ggplot2','dplyr','cowplot','kableExtra','tidyr',"Hmisc")
+
+for (i in libraries){
+  if (!(i %in% installed.packages()[,1])){
+    install.packages(i)
+  }
+}
+
+
+#load libraries
+library(readr)
+#library(readxl)
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(kableExtra)
+library(tidyr)
+library(compositions)
+
+#read data
+Data<-read_csv("Cgodm_finaldata.csv")
+Data$ID <- as.factor(Data$ID)
+Data$class <- as.factor(Data$class)
+Data$toxin_family <- as.factor(Data$toxin_family)
+
+#import list of genes filter by the coverage
+genelist<-scan('Genes.txt', character(), quote = '')
+#t<-read.table("Genes.txt", header = F)
+#genelist<-c(t$V1)
+
+Data_Filter<-data.frame()
+for (i in 1:length(genelist)){
+  Data_Filter[i,1:ncol(Data)]<-Data[which(genelist[i] == Data$ID), ]
+}
+Data_Original<-Data
+Data<-Data_Filter
+rm(Data_Filter)
+
+Data<-Data[!duplicated(Data),]
+
+
+
+```
+
+
+```{r}
+source("tab_functions.R")
+```
+
+
+## rename toxins by average expression and toxin families
+
+```{r}
+Data1<-Data_Original[order(as.vector(Data_Original$class),as.vector(Data_Original$average_tpm),decreasing = T),]
+ToxNam<-data.frame(gene_id = NA,Tox_Name = NA)
+for (i in 1:table(Data1$class)[2]){
+  ToxNam[i,1]<-paste(Data1$ID[i])
+  ToxNam[i,2]<-paste0(Data1$toxin_family[i],"_",i)
+}
+
+for (i in 1:nrow(ToxNam)){
+  levels(Data$ID)[which(ToxNam[i,1] == levels(Data$ID))] <- ToxNam[i,2]
+}
+
+
+#Data %>% mutate_if(is.character,as.vector)
+```
+
+
+## snpEFF Data
+
+```{r}
+##separate part of the data
+snpEff<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","length",
+                "Total_Nonsynonymous","Synonymous","Total_variants")]
+
+
+
+###filter data to drom missing values
+snpEff<-snpEff[which(snpEff$Total_variants > 0),]
+snpEff<-snpEff[complete.cases(snpEff), ]
+
+#### add colums with snps per 1000 bp 
+snpEff$total_snpKB<-(snpEff$Total_variants/snpEff$length)*1000
+snpEff$syn_snpKB<-(snpEff$Synonymous/snpEff$length)*1000
+snpEff$nonsyn_snpKB<-(snpEff$Total_Nonsynonymous/snpEff$length)*1000
+
+###subset tables in Toxins and Nontoxins
+snpEff_tox<-droplevels.data.frame(subset(snpEff,snpEff$class=="Toxin"))
+snpEff_nontox<-droplevels.data.frame(subset(snpEff,snpEff$class=="Nontoxin"))
+
+###summarize table by class and calculating number of genes by class mean smp per kb standar deviation and sum of snps and proprtion of synonymous and nonsynonymous
+x<-snpEff %>% group_by(class) %>% summarize(n=n(),
+                                            perKB_all=mean(total_snpKB),
+                                            perKB_all_sd=sd(total_snpKB),
+                                            Total_Nonsynonymous=sum(Total_Nonsynonymous),
+                                            Total_Synonymous=sum(Synonymous),
+                                            Total_Variants=sum(Total_variants),
+                                            Prop_nonsyn=(Total_Nonsynonymous/Total_Variants),
+                                            Prop_syn=(Total_Synonymous/Total_Variants))
+
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+
+```
+
+
+### Is there a significant association between the type of mutation (nonsynonymous vs. synonymous) and the transcript class (toxin vs. nontoxin)?
+
+```{r}
+chisq.test(x[,5:6])
+
+models_tab<-chi2_table(model = chisq.test(x[,5:6]),id = "Chi2 type of mutation ~ class")
+```
+
+### Is there a significant difference in the number of SNPs per kilobase between toxin and nontoxins?
+
+```{r}
+##transform variable to improve normality of the data
+hist(sqrt(snpEff$total_snpKB))
+##linear model to compare snpKB for toxins vs nontoxins
+(m<-summary(lm(sqrt(snpEff$total_snpKB)~snpEff$class)))
+####to check that the number is not afecting the result Rhett did 1000 repetitions of the linear model taking randon subsets of the nontoxins of the size of the toxins
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="SNPs per Kilobase ~ class")
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(snpEff_nontox$total_snpKB,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","total_snpKB")
+  data<-snpEff_tox[,c("class","total_snpKB")]
+  data<-rbind(data,samp)
+  z<-summary(lm(sqrt(as.numeric(data$total_snpKB))~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="SNP's per kb")
+b<-round(pct[2]*0.01,2)
+```
+### Is there a significant difference in the number of non synonymous SNPs per kilobase between toxin and nontoxins?
+
+```{r}
+##transform variable to improve normality of the data
+hist(as.vector(clr(snpEff$nonsyn_snpKB)))
+##linear model to compare snpKB for toxins vs nontoxins
+(m<-summary(lm(as.vector(clr(snpEff$nonsyn))~snpEff$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Nonsynonymous SNPs per Kilobase ~ class")
+####to check that the number is not afecting the result Rhett did 1000 repetitions of the linear model taking randon subsets of the nontoxins of the size of the toxins
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(snpEff$nonsyn_snpKB,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","nonsyn_snpKB")
+  data<-snpEff_tox[,c("class","nonsyn_snpKB")]
+  data<-rbind(data,samp)
+  z<-summary(lm(as.vector(clr(as.numeric(data$nonsyn_snpKB)))~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="nonsynonymous SNP's per kb")
+b<-round(pct[2]*0.01,2)
+```
+
+### Is there a significant difference in the number of synonymous SNPs per kilobase between toxin and nontoxins?
+
+```{r}
+##transform variable to improve normality of the data
+hist(sqrt(snpEff$syn_snpKB))
+##linear model to compare snpKB for toxins vs nontoxins
+(m<-summary(lm(sqrt(snpEff$syn_snpKB)~snpEff$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Synonymous SNPs per Kilobase ~ class")
+####to check that the number is not afecting the result Rhett did 1000 repetitions of the linear model taking randon subsets of the nontoxins of the size of the toxins
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(snpEff_nontox$syn_snpKB,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","syn_snpKB")
+  data<-snpEff_tox[,c("class","syn_snpKB")]
+  data<-rbind(data,samp)
+  z<-summary(lm(sqrt(as.numeric(data$syn_snpKB))~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+table(results[,2] < 0.05)
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("TRUE"))[2])
+lbls<-c("True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("green"),main="synonymous SNP's per kb")
+b<-round(pct[2]*0.01,2)
+```
+
+
+## Nucleotide diversity
+
+Read the data
+
+```{r}
+NDiv<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","pi","Total_variants","toxin_family")]
+NDiv<-NDiv[which(NDiv$Total_variants > 0),]
+NDiv<-NDiv[complete.cases(NDiv), ]
+NDiv_tox<-droplevels.data.frame(subset(NDiv,NDiv$class=="Toxin"))
+NDiv_nontox<-droplevels.data.frame(subset(NDiv,NDiv$class=="Nontoxin"))
+
+x<-NDiv %>% group_by(class) %>% summarize(mean=mean(pi),sd=sd(pi),n=length(pi))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+
+
+### Is there a significant difference in nucleotide diversity between toxins and nontoxins?
+
+```{r}
+hist(NDiv$pi)
+(m<-summary(lm(NDiv$pi~NDiv$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Nucleotide diversity ~ class")
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(NDiv_nontox$pi,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","pi")
+  data<-NDiv_tox[,c("class","pi")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$pi~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Nucleotide Diversity")
+b<-round(pct[2]*0.01,2)
+```
+
+
+Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+
+```{r}
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+CI<-quantile(NDiv_nontox$pi,c(0.025,0.975))
+NDiv_tox$sig<-NA
+for (i in 1:nrow(NDiv_tox)){
+  if (NDiv_tox$pi[i] < CI[1] | NDiv_tox$pi[i] > CI[2]){NDiv_tox$sig[i]<-TRUE}
+  else {NDiv_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(NDiv_tox,NDiv_tox$sig=="TRUE"))
+print(sig$ID[which(sig$sig == T)])
+ggplot(NDiv, aes(x=class, y=pi)) + 
+  geom_violin(aes(fill=class),trim=F) + 
+  ylim(NA,(1.25*max(NDiv$pi))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  geom_point(aes(x=class,y=pi),data=sig,fill="white",colour="black",size=3,pch=23) +
+  geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+  geom_label(data=sig,aes(x=2.25,label=ID,y=pi),label.size = 0,size=5,inherit.aes = F) +
+  draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("R2=",r2,"\n p =",p,"\n b =",b),x=1.5,y=(1*max(NDiv$pi)),size=10) +
+  guides(fill= "none")+
+  theme_classic()
+```
+
+### Does nucleotide diversity correlate with average expression levels?
+
+```{r}
+x<-NDiv %>% group_by(diff_exprs) %>% summarize(mean=mean(pi),sd=sd(pi),n=length(pi))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(NDiv$pi~NDiv$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="NDiv ~ Dif_Exp")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(NDiv, aes(x=diff_exprs, y=pi)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.25*max(NDiv$pi))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("R2 =",r2,"\n p =",p),x=1.5,y=(1*max(NDiv$pi)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+
+all_lm<-lm(NDiv$pi~log(NDiv$average_tpm))
+(m<-summary(all_lm))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="NDiv ~ expression")
+r2<-round(m$r.squared,3)
+p<-round(m$coefficients[2,4],3)
+ggplot(NDiv,aes(x=log(average_tpm),y=pi)) + xlab("Average TPM") + ylab("Pi") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(NDiv),"; R2=",r2,"; p =",p),x=7.5,y=0.55,size=10)+
+  theme_classic()
+```
+
+### Does nucleotide diversity correlate with average expression levels **in toxins**?
+
+```{r}
+x<-NDiv_tox %>% group_by(diff_exprs) %>% summarize(mean=mean(pi),sd=sd(pi),n=length(pi))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(NDiv_tox$pi~NDiv_tox$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Toxins nucleotide diversity ~ class")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(NDiv_tox, aes(x=diff_exprs, y=pi)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.25*max(NDiv$pi))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.2*max(NDiv$pi)),size=10) +
+  draw_label(paste("R2 =",r2,"\n p =",p),x=1.5,y=(1*max(NDiv$pi)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+
+all_lm<-lm(NDiv_tox$pi~log(NDiv_tox$average_tpm))
+AIC(all_lm)
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="Toxins nucleotide diversity ~ expression",aic = T)
+(m<-summary(all_lm))
+r2<-round(m$r.squared,3)
+p<-round(m$coefficients[2,4],3)
+ggplot(NDiv_tox,aes(x=log(average_tpm),y=pi)) + xlab("Average TPM") + ylab("Pi") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(NDiv_tox),"; R2=",r2,"; p =",p),x=7.5,y=0.4,size=10)+
+  theme_classic()
+```
+
+
+### Does nucleotide diversity correlate with average expression levels and toxin family **in toxins**?
+
+```{r}
+all_lm<-lm(NDiv_tox$pi~log(NDiv_tox$average_tpm)+NDiv_tox$toxin_family)
+models_tab<-lm_table(all_lm,tf=T,smr=F,add=T,tab = models_tab,id="Toxins nucleotide diversity ~ expression and toxin family",aic = T)
+AIC(all_lm)
+(m<-summary(all_lm))
+r2<-round(m$r.squared,3)
+p<-round(m$coefficients[2,4],3)
+ggplot(NDiv_tox,aes(x=log(average_tpm),y=pi)) + xlab("Average TPM") + ylab("Pi") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(NDiv_tox),"; R2=",r2,"; p =",p),x=7.5,y=0.4,size=10)+
+  theme_classic()
+```
+
+
+
+## Tajima's D
+
+get the data
+```{r}
+Tajima<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","tajimasD","Total_variants","toxin_family")]
+Tajima<-Tajima[which(Tajima$Total_variants > 0),]
+Tajima<-Tajima[complete.cases(Tajima), ]
+
+Tajima_tox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Toxin"))
+Tajima_nontox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Nontoxin"))
+
+x<-Tajima %>% group_by(class) %>% summarize(mean=mean(tajimasD),sd=sd(tajimasD),n=length(tajimasD))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+### Are estimates of Tajima's D significantly different than 0 (suggesting selection) for toxins or nontoxins?
+```{r}
+t.test(Tajima_nontox$tajimasD)
+sd(Tajima_nontox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_nontox$tajimasD), add=T,tab = models_tab,id="NonToxins TD t.test")
+t.test(Tajima_tox$tajimasD)
+sd(Tajima_tox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_tox$tajimasD), add=T,tab = models_tab,id="Toxins TD t.test")
+t.test(Tajima_nontox$tajimasD,Tajima_tox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_nontox$tajimasD,Tajima_tox$tajimasD), add=T,tab = models_tab,id="Toxins vs Nontoxins TD t.test")
+var.test(Tajima$tajimasD ~ Tajima$class)
+models_tab <-f_table(model = var.test(Tajima$tajimasD ~ Tajima$class), add=T,tab = models_tab,id="Toxins vs Nontoxins TD F.test")
+
+```
+
+```{r}
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Tajima_nontox$tajimasD,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","tajimasD")
+  data<-samp
+  z<-t.test(as.numeric(data[,2]))
+  results[i,1]<-round(z$estimate,2)
+  results[i,2]<-round(z$p.value,2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Tajima's D")
+b<-round(pct[2]*0.01,2)
+```
+
+
+
+### Is there a significant difference in Tajima's D between toxins and nontoxins?
+
+```{r}
+hist(Tajima$tajimasD)
+(m<-summary(lm(Tajima$tajimasD~Tajima$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="TD ~ class")
+
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Tajima_nontox$tajimasD,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","tajimasD")
+  data<-Tajima_tox[,c("class","tajimasD")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$tajimasD~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Tajima's D")
+b<-round(pct[2]*0.01,2)
+```
+```{r}
+#Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+CI<-quantile(Tajima_nontox$tajimasD,c(0.025,0.975))
+Tajima_tox$sig<-NA
+for (i in 1:nrow(Tajima_tox)){
+  if (Tajima_tox$tajimasD[i] <= CI[1] | Tajima_tox$tajimasD[i] >= CI[2]){Tajima_tox$sig[i]<-TRUE}
+  else {Tajima_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$sig=="TRUE"))
+print(sig[which(sig$sig == T),c("ID","tajimasD")])
+```
+
+### Figure 2A
+```{r}
+(Fig2A <- ggplot(Tajima, aes(x=class, y=tajimasD)) + 
+    geom_violin(aes(fill=class),trim=F) + 
+    ylim(NA,(1.5*max(Tajima$tajimasD))) +
+    #scale_fill_manual(values=c("#00BFC4","#F8766D")) +
+    scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+    stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+    geom_point(aes(x=class,y=tajimasD),data=sig,fill="white",colour="black",size=3,pch=23) + #,position=position_jitter(width=0.1,seed=1)) +
+    geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+    geom_label(data=sig,aes(x=2.25,label=ID,y=tajimasD),label.size = 0,size=4,inherit.aes = F) + #, position=position_jitter(width=0,height=0.4,seed=1)) +
+    draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Tajima$tajimasD)),size=10) +
+    draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Tajima$tajimasD)),size=10) +
+    draw_label(paste("R2 =",r2,"\n p =",p,"\n b =",b),x=1.5,y=(1.25*max(Tajima$tajimasD)),size=10) +
+    guides(fill="none"))+
+  theme_classic()
+```
+
+### Does Tajima's D (All, Positive, and Negative values) correlate with average expression levels?
+```{r}
+x<-Tajima %>% group_by(diff_exprs) %>% summarize(mean=mean(tajimasD),sd=sd(tajimasD),n=length(tajimasD))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(Tajima$tajimasD~Tajima$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="TD ~ Dif_Exp")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+
+library(Hmisc)
+ggplot(Tajima, aes(x=diff_exprs, y=tajimasD,trim=F)) + 
+  geom_violin(aes(fill=diff_exprs)) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.5*max(Tajima$tajimasD))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("R2 =",r2,"\n p =",p),x=1.5,y=(1.25*max(Tajima$tajimasD)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+detach('package:Hmisc',unload = T)
+
+
+all_lm<-lm(Tajima$tajimasD~log(Tajima$average_tpm))
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="TD all ~ expression",aic = T)
+AIC(all_lm)
+(m<-summary(all_lm))
+lt0<-droplevels.data.frame(subset(Tajima,Tajima$tajimasD<0))
+lt0_lm<-lm(lt0$tajimasD~log(lt0$average_tpm))
+AIC(lt0_lm)
+models_tab<-lm_table(lt0_lm,smr=F,add=T,tab = models_tab,id="TD lower than 0 ~ expression",aic = T)
+(m_lt0<-summary(lt0_lm))
+gt0<-droplevels.data.frame(subset(Tajima,Tajima$tajimasD>0))
+gt0_lm<-lm(gt0$tajimasD~log(gt0$average_tpm))
+AIC(gt0_lm)
+models_tab<-lm_table(gt0_lm,smr=F,add=T,tab = models_tab,id="TD greater than 0 ~ expression",aic = T)
+(m_gt0<-summary(gt0_lm))
+ggplot(Tajima,aes(x=log(average_tpm),y=tajimasD)) + xlab("Average TPM") + ylab("Tajima's D") +
+  geom_point() + geom_hline(yintercept=0) + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+  geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(Tajima),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+  draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+  draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10)+
+  theme_classic()
+```
+
+### Does Tajima's D (All, Positive, and Negative values) correlate with average expression levels **in toxins**?
+```{r}
+x<-Tajima_tox %>% group_by(diff_exprs) %>% summarize(mean=mean(tajimasD),sd=sd(tajimasD),n=length(tajimasD))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(Tajima_tox$tajimasD~Tajima_tox$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Toxins TD ~ Dif_Exp")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(Tajima_tox, aes(x=diff_exprs, y=tajimasD)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.5*max(Tajima_tox$tajimasD))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Tajima_tox$tajimasD)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Tajima_tox$tajimasD)),size=10) +
+  draw_label(paste("R2=",r2,"; p =",p),x=1.5,y=(1.25*max(Tajima_tox$tajimasD)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+
+all_lm<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm))
+(m<-summary(all_lm))
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="TOXINS TD all ~ expression",aic = T)
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm<-lm(lt0$tajimasD~log(lt0$average_tpm))
+models_tab<-lm_table(lt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS TD lower than 0 ~ expression",aic = T)
+(m_lt0<-summary(lt0_lm))
+
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm<-lm(gt0$tajimasD~log(gt0$average_tpm))
+models_tab<-lm_table(gt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS TD greater than 0 ~ expression",aic = T)
+(m_gt0<-summary(gt0_lm))
+print("all values")
+AIC(all_lm)
+print("lower than 0 values")
+AIC(lt0_lm)
+print("greater than 0 values")
+AIC(gt0_lm)
+```
+
+
+### Does Tajima's D (All, Positive, and Negative values) correlate with average expression levels and toxin families **in toxins**?
+```{r}
+all_lm1<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm)+Tajima_tox$toxin_family)
+models_tab<-lm_table(all_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS TD all ~ expression + toxin family",aic = T)
+(m<-summary(all_lm1))
+
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm1<-lm(lt0$tajimasD~log(lt0$average_tpm)+lt0$toxin_family)
+models_tab<-lm_table(lt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS TD lower than 0 ~ expression+ toxin family",aic = T)
+(m_lt0<-summary(lt0_lm1))
+
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm1<-lm(gt0$tajimasD~log(gt0$average_tpm)+gt0$toxin_family)
+models_tab<-lm_table(gt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS TD greater than 0 ~ expression+ toxin family",aic = T)
+(m_gt0<-summary(gt0_lm1))
+print("all values")
+AIC(all_lm1)
+print("lower than 0 values")
+AIC(lt0_lm1)
+print("greater than 0 values")
+AIC(gt0_lm1)
+```
+
+
+### Figure 3A
+```{r}
+(testplot<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD, color = toxin_family)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))+
+  theme_classic()
+```
+
+```{r}
+(Fig3A<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))+
+  theme_classic()
+```
+
+## Global Fst
+```{r}
+Global<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","SPvNP",'Total_variants',"toxin_family")]
+
+ind<- colnames(Global) == "SPvNP"
+colnames(Global)[ind]<- "Global"
+
+Global<-Global[which(Global$Total_variants > 0),]
+Global<-Global[complete.cases(Global), ]
+Global_tox<-droplevels.data.frame(subset(Global,class=="Toxin"))
+Global_nontox<-droplevels.data.frame(subset(Global,class=="Nontoxin"))
+
+x<-Global %>% group_by(class) %>% summarize(mean=mean(Global),sd=sd(Global),n=length(Global))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+
+### Is there a significant difference in Global Fst between toxins and nontoxins?
+```{r}
+(m<-summary(lm(Global$Global~Global$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab=models_tab,id="Global Fst ~ class")
+
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Global_nontox$Global,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","Global")
+  data<-Global_tox[,c("class","Global")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$Global~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Fst")
+b<-round(pct[2]*0.01,2)
+```
+
+```{r}
+###Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+CI<-quantile(Global_nontox$Global,c(0.95))
+Global_tox$sig<-NA
+for (i in 1:nrow(Global_tox)){
+  if (Global_tox$Global[i] >= CI){Global_tox$sig[i]<-TRUE}
+  else {Global_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(Global_tox,Global_tox$sig=="TRUE"))
+sig[which(sig$sig == T), c("ID","Global")]
+```
+### Figure 2B
+
+```{r}
+(Fig2B <- ggplot(Global, aes(x=class, y=Global)) + 
+    geom_violin(aes(fill=class),trim=F) + 
+    ylim(NA,(1.25*max(Global$Global))) +
+    #scale_fill_manual(values=c("#00BFC4","#F8766D")) +
+    scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+    stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+    geom_point(aes(x=class,y=Global),data=sig,fill="white",colour="black",size=3,pch=23) + #,position=position_jitter(width=0.1,seed=1)) +
+    geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+    geom_label(data=sig,aes(x=2.25,label=ID,y=Global),label.size = 0,size=4,inherit.aes = F) + #, position=position_jitter(width=0,height=0.4,seed=1)) +
+    draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.25*max(Global$Global)),size=10) +
+    draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.25*max(Global$Global)),size=10) +
+    draw_label(paste("R2 =",r2,"\n p =",p,"\n b =",b),x=1.5,y=(max(Global$Global)),size=10) +
+    guides(fill="none"))+
+  ylab("Fst")+
+  xlab("Class")+
+  theme_classic()
+```
+
+
+### Does Global Fst correlate with average expression levels?
+
+```{r}
+x<-Global %>% group_by(diff_exprs) %>% summarize(mean=mean(Global),sd=sd(Global),n=length(Global))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(Global$Global~Global$diff_exprs)))
+models_tab<-lm_table(m,smr = T,add=T,tab = models_tab,id = "Global Fst ~ Dif Expr")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(Global, aes(x=diff_exprs, y=Global)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F,scale="width") +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.5*max(Global$Global))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Global$Global)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Global$Global)),size=10) +
+  draw_label(paste("R2=",r2,"; p =",p),x=1.5,y=(1.25*max(Global$Global)),size=10) +
+  guides(fill="none")+
+  theme_classic()+
+  ylab("Fst")
+```
+
+```{r}
+all_lm<-lm(Global$Global~log(Global$average_tpm))
+models_tab<-lm_table(all_lm,add=T,tab = models_tab,id = "Global Fst ~ expression",aic = T)
+(m<-summary(all_lm))
+ggplot(Global,aes(x=log(average_tpm),y=Global)) + xlab("Average TPM") + ylab("Global Fst") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(Global),"; R2=",round(m$r.squared,3),"; p =",round(m$coefficients[2,4],3)),x=7.5,y=-0.5,size=10)+
+  theme_classic()+
+  ylab("Fst")
+```
+
+
+
+### Does Global Fst correlate with average expression levels **in toxins**?
+
+```{r}
+x<-Global_tox %>% group_by(diff_exprs) %>% summarize(mean=mean(Global),sd=sd(Global),n=length(Global))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(Global_tox$Global~Global_tox$diff_exprs)))
+models_tab<-lm_table(m,smr = T,add=T,tab = models_tab,id = "TOXINS Global Fst ~ Dif Expr")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(Global_tox, aes(x=diff_exprs, y=Global)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.5*max(Global_tox$Global))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Global_tox$Global)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Global_tox$Global)),size=10) +
+  draw_label(paste("R2=",r2,"; p =",p),x=1.5,y=(1.25*max(Global_tox$Global)),size=10) +
+  guides(fill="none")+
+  theme_classic()+
+  ylab("Fst")
+
+all_lm<-lm(Global_tox$Global~log(Global_tox$average_tpm))
+models_tab<-lm_table(all_lm,add=T,tab = models_tab,id = "TOXINS Global Fst ~ expression",aic = T)
+(m<-summary(all_lm))
+print("AIC average TPM")
+AIC(all_lm)
+```
+
+### Does Global Fst correlate with average expression levels and toxin family **in toxins**?
+
+```{r}
+
+all_lm1<-lm(Global_tox$Global~log(Global_tox$average_tpm)+Global_tox$toxin_family)
+models_tab<-lm_table(all_lm1,tf=T,add=T,tab = models_tab,id = "TOXINS global Fst ~ expression + toxin family",aic = T)
+(m<-summary(all_lm1))
+print("AIC toxin families")
+AIC(all_lm1)
+```
+
+
+
+
+### Figure 3B
+
+```{r}
+(Fig3B<-ggplot(Global_tox,aes(x=log(average_tpm),y=Global)) + xlab("Average TPM") + ylab("Global Fst") +
+    geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Global_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=-0.15,size=10))+
+  theme_classic()+
+  ylab("Fst")
+
+```
+
+## Tajima's D Synonymous Mutations
+
+get the data
+
+```{r}
+Tajima<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","tajimasD_synon","Total_variants","toxin_family")]
+colnames(Tajima)[7]<-"tajimasD"
+Tajima<-Tajima[which(Tajima$Total_variants != 0),]
+Tajima<-Tajima[complete.cases(Tajima), ]
+Tajima_tox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Toxin"))
+Tajima_nontox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Nontoxin"))
+
+x<-Tajima %>% group_by(class) %>% summarize(mean=mean(tajimasD),sd=sd(tajimasD),
+                                            n=length(tajimasD))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+
+### Are estimates of Tajima's D for synonymous mutations significantly different than 0 (suggesting selection) for toxins or nontoxins?
+
+```{r}
+t.test(Tajima_nontox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_nontox$tajimasD), add=T,tab = models_tab,id="NonToxins Synonymous TD t.test")
+t.test(Tajima_tox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_tox$tajimasD), add=T,tab = models_tab,id="Toxins Synonymous TD t.test")
+```
+### Is there a significant difference in Tajima's D for synonymous mutations between toxins and nontoxins?
+```{r}
+(m<-summary(lm(Tajima$tajimasD~Tajima$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Synonymous TD ~ class")
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Tajima_nontox$tajimasD,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","tajimasD")
+  data<-Tajima_tox[,c("class","tajimasD")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$tajimasD~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Tajima's D")
+b<-round(pct[2]*0.01,2)
+```
+
+```{r}
+#Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+CI<-quantile(Tajima_nontox$tajimasD,c(0.025,0.975))
+Tajima_tox$sig<-NA
+for (i in 1:nrow(Tajima_tox)){
+  if (Tajima_tox$tajimasD[i] <= CI[1] | Tajima_tox$tajimasD[i] >= CI[2]){Tajima_tox$sig[i]<-TRUE}
+  else {Tajima_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$sig=="TRUE"))
+print(sig[which(sig$sig == T),c("ID","tajimasD")])
+```
+
+```{r}
+ggplot(Tajima, aes(x=class, y=tajimasD)) + 
+  geom_violin(aes(fill=class),trim=F) + 
+  ylim(NA,(1.5*max(Tajima$tajimasD))) +
+  #scale_fill_manual(values=c("#00BFC4","#F8766D")) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  geom_point(aes(x=class,y=tajimasD),data=sig,fill="white",colour="black",size=3,pch=23) + #,position=position_jitter(width=0.1,seed=1)) +
+  geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+  geom_label(data=sig,aes(x=2.25,label=ID,y=tajimasD),label.size = 0,size=4,inherit.aes = F) + #, position=position_jitter(width=0,height=0.4,seed=1)) +
+  draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("R2 =",r2,"\n p =",p,"\n b =",b),x=1.5,y=(1.25*max(Tajima$tajimasD)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+```
+### Does synonymous Tajima's D (All, Positive, and Negative values) correlate with average expression levels and toxin families **in toxins**?
+
+```{r}
+all_lm<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm))
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD all ~ expression",aic = T)
+(m<-summary(all_lm))
+
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm<-lm(lt0$tajimasD~log(lt0$average_tpm))
+models_tab<-lm_table(lt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD lower than 0 ~ expression",aic = T)
+(m_lt0<-summary(lt0_lm))
+
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm<-lm(gt0$tajimasD~log(gt0$average_tpm))
+models_tab<-lm_table(gt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD greater than 0 ~ expression",aic = T)
+(m_gt0<-summary(gt0_lm))
+print("all values")
+AIC(all_lm)
+print("lower than 0 values")
+AIC(lt0_lm)
+print("greater than 0 values")
+AIC(gt0_lm)
+```
+
+
+
+```{r}
+all_lm1<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm)+Tajima_tox$toxin_family)
+(m1<-summary(all_lm1))
+models_tab<-lm_table(all_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD all ~ expression + toxin family",aic = T)
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm1<-lm(lt0$tajimasD~log(lt0$average_tpm)+lt0$toxin_family)
+models_tab<-lm_table(lt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD lower than 0 ~ expression + toxin family",aic = T)
+(m_lt01<-summary(lt0_lm1))
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm1<-lm(gt0$tajimasD~log(gt0$average_tpm)+gt0$toxin_family)
+models_tab<-lm_table(gt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Synonymous TD greater than 0 ~ expression + toxin family",aic = T)
+(m_gt01<-summary(gt0_lm1))
+print("all values")
+AIC(all_lm1)
+print("lower than 0 values")
+AIC(lt0_lm1)
+print("greater than 0 values")
+AIC(gt0_lm1)
+```
+
+```{r}
+(testplot<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD, color = toxin_family)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm1)[1],slope=coef(all_lm1)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm1)[1],slope=coef(lt0_lm1)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm1)[1],slope=coef(gt0_lm1)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m1$r.squared,2),"; p =",round(m1$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt01$r.squared,2),"; p =",round(m_lt01$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt01$r.squared,2),"; p =",round(m_gt01$coefficients[2,4],2)),x=7.5,y=1,size=10))#+
+ # theme_classic()
+```
+
+```{r}
+(Fig3A<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))#+
+ # theme_classic()
+```
+
+
+## Tajima's D Nonsynonymous Mutations
+
+get data
+
+```{r}
+Tajima<-Data[,c("ID","class","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","tajimasD_nonsyn",'Total_variants',"toxin_family")]
+colnames(Tajima)[7]<-"tajimasD"
+Tajima<-Tajima[which(Tajima$Total_variants != 0),]
+Tajima<-Tajima[complete.cases(Tajima), ]
+Tajima_tox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Toxin"))
+Tajima_nontox<-droplevels.data.frame(subset(Tajima,Tajima$class=="Nontoxin"))
+
+x<-Tajima %>% group_by(class) %>% summarize(mean=mean(tajimasD),sd=sd(tajimasD),
+                                            n=length(tajimasD))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+  
+### Are estimates of Tajima's D for nonsynonymous mutations significantly different than 0 (suggesting selection) for toxins or nontoxins?
+```{r}
+t.test(Tajima_nontox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_nontox$tajimasD), add=T,tab = models_tab,id="NonToxins Nonynonymous TD t.test")
+t.test(Tajima_tox$tajimasD)
+models_tab <-t_table(model = t.test(Tajima_tox$tajimasD), add=T,tab = models_tab,id="Toxins Nonynonymous TD t.test")
+```
+
+### Is there a significant difference in Tajima's D for nonsynonymous mutations between toxins and nontoxins?
+```{r}
+(m<-summary(lm(Tajima$tajimasD~Tajima$class)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="Nonsynonymous TD (non normal**) ~ class ")
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Tajima_nontox$tajimasD,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","tajimasD")
+  data<-Tajima_tox[,c("class","tajimasD")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$tajimasD~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="Tajima's D")
+b<-round(pct[2]*0.01,2)
+
+```
+
+```{r}
+#Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+CI<-quantile(Tajima_nontox$tajimasD,c(0.025,0.975))
+Tajima_tox$sig<-NA
+for (i in 1:nrow(Tajima_tox)){
+  if (Tajima_tox$tajimasD[i] <= CI[1] | Tajima_tox$tajimasD[i] >= CI[2]){Tajima_tox$sig[i]<-TRUE}
+  else {Tajima_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$sig=="TRUE"))
+print(sig[which(sig$sig == T),c("ID","tajimasD")])
+```
+```{r}
+ggplot(Tajima, aes(x=class, y=tajimasD)) + 
+  geom_violin(aes(fill=class),trim=F) + 
+  ylim(NA,(1.5*max(Tajima$tajimasD))) +
+  #scale_fill_manual(values=c("#00BFC4","#F8766D")) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  geom_point(aes(x=class,y=tajimasD),data=sig,fill="white",colour="black",size=3,pch=23) + #,position=position_jitter(width=0.1,seed=1)) +
+  geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+  geom_label(data=sig,aes(x=2.25,label=ID,y=tajimasD),label.size = 0,size=4,inherit.aes = F) + #, position=position_jitter(width=0,height=0.4,seed=1)) +
+  draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(Tajima$tajimasD)),size=10) +
+  draw_label(paste("R2 =",r2,"\n p =",p,"\n b =",b),x=1.5,y=(1.25*max(Tajima$tajimasD)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+```
+### Non Parametric
+
+```{r}
+kruskal.test(Tajima$tajimasD~Tajima$class)
+models_tab<-chi2_table(model=kruskal.test(Tajima$tajimasD~Tajima$class),add = T,tab = models_tab,id= "Nonsynonymous TD ~ class, Kruskal test")
+```
+
+
+```{r}
+results<-matrix(nrow=1000,ncol=2)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(Tajima_nontox$tajimasD,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","tajimasD")
+  data<-Tajima_tox[,c("class","tajimasD")]
+  data<-rbind(data,samp)
+  z<-kruskal.test(data$tajimasD~data$class)
+  results[i,1]<-round(z$statistic,2)
+  results[i,2]<-round(z$p.value,2)
+}
+table(results[,2] < 0.05)
+```
+
+### Does nonsynonymous Tajima's D (All, Positive, and Negative values) correlate with average expression levels and toxin families **in toxins**?
+
+```{r}
+all_lm<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm))
+(m<-summary(all_lm))
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="TOXINS Nonynonymous TD all ~ expression",aic = T)
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm<-lm(lt0$tajimasD~log(lt0$average_tpm))
+(m_lt0<-summary(lt0_lm))
+models_tab<-lm_table(lt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS Nonynonymous TD lower than 0 ~ expression",aic = T)
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm<-lm(gt0$tajimasD~log(gt0$average_tpm))
+models_tab<-lm_table(gt0_lm,smr=F,add=T,tab = models_tab,id="TOXINS Nonynonymous TD greater than 0 ~ expression",aic = T)
+(m_gt0<-summary(gt0_lm))
+print("all values")
+AIC(all_lm)
+print("lower than 0 values")
+AIC(lt0_lm)
+print("greater than 0 values")
+AIC(gt0_lm)
+```
+
+
+```{r}
+all_lm1<-lm(Tajima_tox$tajimasD~log(Tajima_tox$average_tpm)+Tajima_tox$toxin_family)
+models_tab<-lm_table(all_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Nonsynonymous TD all ~ expression + toxin family",aic = T)
+(m1<-summary(all_lm1))
+lt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD<0))
+lt0_lm1<-lm(lt0$tajimasD~log(lt0$average_tpm)+lt0$toxin_family)
+models_tab<-lm_table(lt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Nonsynonymous TD lower than 0 ~ expression + toxin family",aic = T)
+(m_lt01<-summary(lt0_lm1))
+
+gt0<-droplevels.data.frame(subset(Tajima_tox,Tajima_tox$tajimasD>0))
+gt0_lm1<-lm(gt0$tajimasD~log(gt0$average_tpm)+gt0$toxin_family)
+models_tab<-lm_table(gt0_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS Nonsynonymous TD greater than 0 ~ expression + toxin family",aic = T)
+(m_gt01<-summary(gt0_lm1))
+print("all values")
+AIC(all_lm1)
+print("lower than 0 values")
+AIC(lt0_lm1)
+print("greater than 0 values")
+AIC(gt0_lm1)
+```
+
+
+```{r}
+(testplot<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD, color = toxin_family)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))+
+  theme_classic()
+```
+
+```{r}
+(Fig3A<-ggplot(Tajima_tox,aes(x=log(average_tpm),y=tajimasD)) + xlab("Average TPM") + ylab("Tajima's D") +
+    geom_point() + #geom_hline(yintercept=0) + 
+    geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    geom_abline(intercept = coef(lt0_lm)[1],slope=coef(lt0_lm)[2],lty=3) +
+    geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
+    draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))+
+  theme_classic()
+```
+
+
+## HyPhy Busted
+
+get data
+
+```{r}
+BUSTED<-Data[,c("ID","class","toxin_family","Total_variants","average_tpm","stdev_tpm","bcv_tpm","diff_exprs","p_value","LRT","UCW3")]
+
+genelist<-scan('list_to_R', character(), quote = '')
+
+for (i in 1:length(genelist)){
+  ind<- which(BUSTED$ID == genelist[i])
+  BUSTED<-BUSTED[-ind,]
+}
+
+#colnames(BUSTED)[ncol(BUSTED)]<- 'LRT'
+BUSTED<-BUSTED[which(BUSTED$Total_variants != 0),]
+
+BUSTED<-BUSTED[complete.cases(BUSTED), ]
+BUSTED_tox<-droplevels.data.frame(subset(BUSTED,BUSTED$class=="Toxin"))
+BUSTED_nontox<-droplevels.data.frame(subset(BUSTED,BUSTED$class=="Nontoxin"))
+
+x<-BUSTED %>% group_by(class) %>% summarize(mean=mean(LRT),sd=sd(LRT),n=length(LRT))
+
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+
+
+### Is there a significant difference in BUSTED  between toxins and nontoxins?
+
+#### Non Parametric test
+
+independent 2-group Mann-Whitney U Test 
+wilcox.test(y~A) 
+where y is numeric and A is A binary factor
+
+Kruskal Wallis Test One Way Anova by Ranks 
+kruskal.test(y~A) # where y1 is numeric and A is a factor
+
+```{r}
+wilcox.test(BUSTED$LRT~BUSTED$class)
+
+kruskal.test(BUSTED$LRT~BUSTED$class)
+models_tab<-chi2_table(model = kruskal.test(BUSTED$LRT~BUSTED$class),add = T,tab = models_tab,id = "BUSTED LRT ~ class, Kruskal test")
+```
+
+```{r}
+results<-matrix(nrow=1000,ncol=3)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(BUSTED_nontox$LRT,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","LRT")
+  data<-BUSTED_tox[,c("class","LRT")]
+  data<-rbind(data,samp)
+  z<-kruskal.test(data$LRT~data$class)
+  results[i,1]<-round(z$statistic,2)
+  results[i,2]<-round(z$p.value,2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="BUSTED Likelihood Ratio")
+b<-round(pct[2]*0.01,2)
+```
+
+#### SLM
+
+```{r}
+library(car)
+library(compositions)
+#(m<-summary(lm(LRT~class,data = BUSTED[which(BUSTED$LRT > 0),])))
+(m<-summary(lm(LRT~class,data = BUSTED)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="BUSTED LRT(non normal **) ~ class")
+results<-matrix(nrow=1000,ncol=3)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample(BUSTED_nontox$LRT,x$n[2], replace=T)
+  samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+  colnames(samp)<-c("class","LRT")
+  data<-BUSTED_tox[,c("class","LRT")]
+  data<-rbind(data,samp)
+  z<-summary(lm(data$LRT~data$class))
+  results[i,1]<-round(z$r.squared,2)
+  results[i,2]<-round(z$coefficients[2,4],2)
+  t<-shapiro.test(z$residuals)
+  results[i,3]<-t$p.value
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="BUSTED Likelihood Ratio")
+b1<-round(pct[2]*0.01,2)
+```
+
+```{r}
+#Save the results for plotting and subset toxins which fall outside the 95th percentile of nontoxin estimates.
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+
+
+p<-round(kruskal.test(BUSTED$LRT~BUSTED$class)$p.value,2)
+
+chi2<-round(kruskal.test(BUSTED$LRT~BUSTED$class)$statistic,2)
+CI<-quantile(BUSTED_nontox$LRT,c(0.95))
+BUSTED_tox$sig<-NA
+for (i in 1:nrow(BUSTED_tox)){
+  if (BUSTED_tox$LRT[i] >= CI){BUSTED_tox$sig[i]<-TRUE}
+  else {BUSTED_tox$sig[i]<-FALSE}
+}
+sig<-droplevels.data.frame(subset(BUSTED_tox,BUSTED_tox$sig=="TRUE"))
+citx<-sig[which(sig$sig == T),c("ID","class","toxin_family","p_value","LRT","UCW3")]
+citx[order(citx$toxin_family),]
+```
+
+### Figure 2C
+
+
+```{r}
+(Fig2C <- ggplot(BUSTED, aes(x=class, y=LRT)) + 
+    geom_violin(aes(fill=class),trim=F,scale = "width") + 
+    ylim(NA,(1.25*max(BUSTED$LRT))) +
+    #scale_fill_manual(values=c("#00BFC4","#F8766D")) +
+    scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+    stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+    geom_point(aes(x=class,y=LRT),data=sig,fill="white",colour="black",size=3,pch=23) + #,position=position_jitter(width=0.1,seed=1)) +
+    geom_hline(yintercept=CI,linetype="longdash",color="darkgray")  +
+    labs(y = "LRT_Busted", x= "Class")+
+    geom_label(data=sig,aes(x=2.25,label=ID,y=LRT),label.size = 0,size=4,inherit.aes = F) +
+#    position=position_jitter(width=0,height=0.4,seed=1)) +
+    draw_label(paste("Nontoxins",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.25*max(BUSTED$LRT)),size=10) +
+    draw_label(paste("Toxins",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.25*max(BUSTED$LRT)),size=10) +
+    draw_label(paste("Chi^2 =",chi2,"\n p =",p,"\n b =",b),x=1.5,y=(max(BUSTED$LRT)),size=10) +
+    guides(fill="none"))+
+  theme_classic()
+```
+
+
+
+
+
+
+### Do BUSTED Likelihood Ratios correlate with average expression levels?
+
+#### Non parametric
+
+#### Non parametric test
+
+```{r}
+kruskal.test(BUSTED$LRT~BUSTED$diff_exprs)
+models_tab<-chi2_table(model = kruskal.test(BUSTED$LRT~BUSTED$diff_exprs),add = T,tab = models_tab,id = "BUSTED LRT ~ Dif Exp, Kruskal test")
+
+```
+
+```{r}
+results<-matrix(nrow=1000,ncol=3)
+set.seed(2019)
+for(i in 1:1000) {
+  samp<-sample_n(BUSTED_nontox[,c('diff_exprs','LRT')],length(which(BUSTED$diff_exprs == "TRUE")), replace=T)
+# samp<-cbind(rep("Nontoxin",x$n[2]),samp)
+#  colnames(samp)<-c("class","LRT")
+  data<-BUSTED[which(BUSTED$diff_exprs == "TRUE"),c("diff_exprs","LRT")]
+  data<-rbind(data,samp)
+  z<-kruskal.test(data$LRT~data$diff_exprs)
+  results[i,1]<-round(z$statistic,2)
+  results[i,2]<-round(z$p.value,2)
+}
+pie_results<-unlist(as.data.frame(table(results[,2] < 0.05),row.names = c("FALSE","TRUE"))[2])
+lbls<-c("False","True")
+pct<-as.vector(round(pie_results/sum(pie_results)*100,2))
+lbls<-paste(lbls,pct)
+lbls<-paste(lbls,"%",sep="")
+pie(pie_results,labels=lbls,col=c("red","green"),main="BUSTED Likelihood Ratio")
+b<-round(pct[2]*0.01,2)
+```
+
+
+#### SLM
+```{r}
+x<-BUSTED %>% group_by(diff_exprs) %>% summarize(mean=mean(LRT),sd=sd(LRT),n=length(LRT))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+(m<-summary(lm(BUSTED$LRT~BUSTED$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="BUSTED LRT(non normal **) ~ Dif_Exp")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(BUSTED, aes(x=diff_exprs, y=LRT)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F,scale="width") +
+  xlab("Differentially Expressed") +
+  ylab("LRT_Busted") +
+  ylim(NA,(1.5*max(BUSTED$LRT))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(BUSTED$LRT)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(BUSTED$LRT)),size=10) +
+  draw_label(paste("R2=",r2,"; p =",p),x=1.5,y=(1.25*max(BUSTED$LRT)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+```
+
+#### Non parametric
+
+```{r}
+kruskal.test(BUSTED$LRT,log(BUSTED$average_tpm))
+cor(log(BUSTED$average_tpm),BUSTED$LRT,method = "spearman")
+```
+
+#### SLM 
+
+```{r}
+all_lm<-lm(BUSTED$LRT~log(BUSTED$average_tpm))
+AIC(all_lm)
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="BUSTED LRT ~ expression",aic = T)
+(m<-summary(all_lm))
+ggplot(BUSTED,aes(x=log(average_tpm),y=LRT)) + xlab("Average TPM") + ylab("BUSTED Likelihood Ratio") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(BUSTED),"; R2=",round(m$r.squared,3),"; p =",round(m$coefficients[2,4],3)),x=7.5,y=-10,size=10)+
+  theme_classic()
+
+```
+
+```{r}
+hist(BUSTED$LRT[which(BUSTED$LRT != 0)])
+all_lm<-lm(BUSTED$LRT[which(BUSTED$LRT != 0)]~log(BUSTED$average_tpm)[which(BUSTED$LRT != 0)])
+(m<-summary(all_lm))
+ggplot(BUSTED[which(BUSTED$LRT != 0),],aes(x=log(average_tpm),y=LRT)) + xlab("Average TPM") + ylab("BUSTED Likelihood Ratio") +
+  geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+  draw_label(paste("n =",nrow(BUSTED),"; R2=",round(m$r.squared,3),"; p =",round(m$coefficients[2,4],3)),x=7.5,y=-10,size=10)+
+  theme_classic()
+```
+
+
+### Do BUSTED Likelihood Ratios correlate with average expression levels **in toxins**?
+get data
+
+```{r}
+x<-BUSTED_tox %>% group_by(diff_exprs) %>% summarize(mean=mean(LRT),sd=sd(LRT),n=length(LRT))
+kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size = 10), full_width = F)
+```
+#### Non parametric
+```{r}
+kruskal.test(BUSTED_tox$LRT,BUSTED_tox$diff_exprs)
+models_tab<-chi2_table(model = kruskal.test(BUSTED_tox$LRT,BUSTED_tox$diff_exprs),add = T,tab = models_tab,id = "TOXIN BUSTED LRT ~ Dif Exp, Kruskal test")
+
+```
+#### SLM
+```{r}
+(m<-summary(lm(BUSTED_tox$LRT~BUSTED_tox$diff_exprs)))
+models_tab<-lm_table(m,smr=T,add=T,tab = models_tab,id="TOXIN BUSTED LRT ~ Dif_Exp")
+mean_1<-round(x$mean[1],2)
+mean_2<-round(x$mean[2],2)
+sd_1<-round(x$sd[1],2)
+sd_2<-round(x$sd[2],2)
+n_1<-x$n[1]
+n_2<-x$n[2]
+p<-round(m$coefficients[2,4],2)
+r2<-round(m$r.squared,2)
+ggplot(BUSTED_tox, aes(x=diff_exprs, y=LRT)) + 
+  geom_violin(aes(fill=diff_exprs),trim=F) +
+  xlab("Differentially Expressed") +
+  ylim(NA,(1.2*max(BUSTED_tox$LRT))) +
+  scale_fill_manual(values=c("dodgerblue2","firebrick2")) +
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black") +
+  draw_label(paste("FALSE",paste(mean_1,"±",sd_1),paste("n =",n_1),sep='\n'),x=1,y=(1.45*max(BUSTED_tox$LRT)),size=10) +
+  draw_label(paste("TRUE",paste(mean_2,"±",sd_2),paste("n =",n_2),sep='\n'),x=2,y=(1.45*max(BUSTED_tox$LRT)),size=10) +
+  draw_label(paste("R2=",r2,"; p =",p),x=1.5,y=(1.25*max(BUSTED_tox$LRT)),size=10) +
+  guides(fill="none")+
+  theme_classic()
+
+
+all_lm<-lm(BUSTED_tox$LRT~log(BUSTED_tox$average_tpm))
+AIC(all_lm)
+models_tab<-lm_table(all_lm,smr=F,add=T,tab = models_tab,id="TOXIN BUSTED LRT ~ expression",aic = T)
+(m<-summary(all_lm))
+print("AIC BUSTED ~ Expression")
+AIC(all_lm)
+```
+
+
+#### SLM
+```{r}
+
+all_lm1<-lm(BUSTED_tox$LRT~log(BUSTED_tox$average_tpm)+BUSTED_tox$toxin_family)
+models_tab<-lm_table(all_lm1,tf=T,smr=F,add=T,tab = models_tab,id="TOXINS BUSTED LRT ~ expression + toxin family",aic = T)
+(m1<-summary(all_lm1))
+print("AIC BUSTED ~ Expression")
+AIC(all_lm)
+```
+
+
+### Figure 3C
+
+```{r}
+(testplot<-ggplot(BUSTED_tox,aes(x=log(average_tpm),y=LRT, color = toxin_family)) + xlab("Average TPM") + ylab("LRT Busted model") +
+    geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(BUSTED_tox)," ; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=3,size=10))+
+    theme_classic()
+
+```
+```{r}
+(Fig3C<-ggplot(BUSTED_tox,aes(x=log(average_tpm),y=LRT)) + xlab("Average TPM") + ylab("LRT Busted model") +
+    geom_point() + geom_abline(intercept = coef(all_lm)[1],slope=coef(all_lm)[2],lty=2) +
+    draw_label(paste("n =",nrow(BUSTED_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=3,size=10))+
+    theme_classic()
+
+```
+
+
+
+## COWPLOTS
+
+```{r}
+Fig2A<-Fig2A+theme_classic()
+Fig2B<-Fig2B+theme_classic()
+Fig2C<-Fig2C+theme_classic()
+Fig3A<-Fig3A+theme_classic()
+Fig3B<-Fig3B+theme_classic()
+Fig3C<-Fig3C+theme_classic()
+
+plot_grid(Fig2A,Fig2B,Fig2C,Fig3A,Fig3B,Fig3C,align="hv",nrow=2,ncol=3,labels="AUTO")
+output<-plot_grid(Fig2A,Fig2B,Fig2C,Fig3A,Fig3B,Fig3C,align="hv",nrow=2,ncol=3,labels="AUTO")
+
+ggsave("Cgodm_selection_plots.svg",output,width = 30, height = 20, units = "cm")
+#pdf("Cgodm_selection_plots.pdf",width = 16, height=10)
+#plot_grid(Fig2A,Fig2B,Fig2C,Fig3A,Fig3B,Fig3C,align="hv",nrow=2,ncol=3,labels="AUTO")
+#dev.off() 
+
+
+write.csv(models_tab,"models_summary.csv")
+```
+
