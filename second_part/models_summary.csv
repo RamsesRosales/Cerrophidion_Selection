@@ -1,4 +1,4 @@
-"","formula","Chisquared","p.value","id","aic"
+"","formula","Statistic","p.value","id","aic"
 "1","x[, 5:6]",230.224632308567,5.32542320704602e-52,"Chi2 type of mutation ~ class","NA"
 "2","sqrt(snpEff$total_snpKB) ~ snpEff$class",3.83550783293445e-05,0.675338853799102,"SNPs per Kilobase ~ class","NA"
 "3","as.vector(clr(snpEff$nonsyn)) ~ snpEff$class",0.00986171434337126,1.66783804920376e-11,"Nonsynonymous SNPs per Kilobase ~ class","NA"

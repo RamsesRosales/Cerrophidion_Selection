@@ -4350,6 +4350,6 @@ ggsave("Cgodm_selection_plots.svg",output,width = 30, height = 20, units = "cm")
 #plot_grid(Fig2A,Fig2B,Fig2C,Fig3A,Fig3B,Fig3C,align="hv",nrow=2,ncol=3,labels="AUTO")
 #dev.off() 
 
-
+colnames(models_tab)[2]<-"Statistic"
 write.csv(models_tab,"models_summary.csv")
 ```
