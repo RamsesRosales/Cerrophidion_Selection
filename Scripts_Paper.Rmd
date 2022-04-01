@@ -1,0 +1,2065 @@
+---
+title: SCRIPTS:Venom variation and evolution in populations of montane pitvipers (*Viperidae*\ :*Cerrophidion*).
+author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph I.
+  Grunwald, Jason M. Jones, Hector Franz-Chavez, Ivan T. Ahumada-Carrillo, Ricardo
+  Ramirez-Chaparro, Miguel Angel De la Torre-Loranca, Jason L. Strickland, Andrew
+  J. Mason, Matthew L. Holding, Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R.
+  Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
+date: "`r format(Sys.time(), '%Y %B %d')`"
+output:
+  html_notebook:
+    theme: journal
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+  github_document:
+    toc: yes
+    toc_depth: 4
+---
+
+
+
+
+# Assembly
+
+## Pre Assembly
+
+
+
+I started with the raw sequences and a list of the ID of the files named list1
+
+loop to generate the concatenated files R1 forward read and R2 reverse read
+```{bash,eval=FALSE}
+for i in `cat list1`; do mkdir -p $i/00raw;mv $i* $i/00raw/;
+mkdir $i/01concat;
+cat $i/00raw/*_R1_*.fastq.gz > $i/01concat/${i}_R1.fastq.gz;
+cat $i/00raw/*_R2_*.fastq.gz > $i/01concat/${i}_R2.fastq.gz;
+done
+
+```
+
+
+Make a "bio" conda environment for next steps
+```{bash, eval=FALSE}
+conda create -n bio
+conda activate bio
+conda install parallel trim-galore fastqc biopython
+conda install -y biopython bamtools bedtools blast bowtie2 bwa cd-hit emboss fastqc gatk4 jellyfish parallel pear picard pigz rsem samtools sra-tools trim-galore
+```
+
+
+run fastqc to check for quality of the sequences
+run trim galore to trim the sequences with low quality and the idex sequences
+run fastqc again to check the trimed sequences
+
+```{bash,eval=FALSE}
+parallel -a list1 -j 6 --verbose "cd {}
+cd 01concat 
+fastqc *.fastq.gz
+cd ..
+mkdir 02trim
+trim_galore --paired --phred33 --length 75 -q 5 --stringency 1 -e 0.1 -o 02trim 01concat/{}_R1.fastq.gz 01concat/{}_R2.fastq.gz &> 02trim/{}_tg.log
+cd 02trim 
+mv {}_R1_val_1.fq.gz {}_R1_trim.fastq.gz  
+mv {}_R2_val_2.fq.gz {}_R2_trim.fastq.gz
+fastqc *.fastq.gz"
+```
+
+Use pear to merge forward and reverse reads
+
+```{bash, eval=FALSE}
+parallel -a list1 -j 3 --verbose "echo {}
+cd {}
+mkdir 03merged
+pear -j 4 -f 02trim/{}_R1_trim.fastq.gz -r 02trim/{}_R2_trim.fastq.gz -o 03merged/{}_pear > 03merged/{}_pear.log
+cd 03merged
+pigz *.fastq
+pigz -d {}_pear.assembled.fastq.gz"
+```
+
+## Assembly
+
+We used 3 assembly softwares, the seamples were in palmetto HPC cluster which uses PVS protocol.
+
+```{bash,eval=FALSE}
+qsub <pbs_script>
+```
+
+### Extender
+
+```{bash,eval=FALSE}
+#PBS -N Extender
+#PBS -l select=13:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j ose
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile;
+ module load anaconda3/5.1.0-gcc/8.3.1;
+ source activate bio;
+ cd /zfs/venom/Ramses/Cerrophidion;
+ cd {};
+    cd 03merged
+    pigz -d *fastq.gz
+    cd ..
+ mkdir 04extender;
+ cd 04extender;
+    Extender3.py -r ../03merged/{}_pear.assembled.fastq -s 1000 -o 120 -msq 30 -mrq 20 -reps 20 -p 0.20 -e 2 -np 20 > {}_extender.log"
+```
+
+### Ngen
+
+```{bash,eval=FALSE}
+#!/bin/bash
+#
+#PBS -N Ngen
+#PBS -l select=13:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate bio 
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    mkdir 05Ngen
+    cd 05Ngen
+    cp /zfs/venom/Ramses/bin/NGen/05Ngen.script .
+    sed 's/NAME/{}/g' 05Ngen.script > 05Ngen.script2
+    rm 05Ngen.script
+    mv 05Ngen.script2 05Ngen.script
+    xng 05Ngen.script &> {}_05Ngen.log"
+```
+
+the control script is this, it has to be modified with the right path <05Ngen.script>
+
+```{bash,eval=FALSE}
+#!/zfs/venom/Ramses/bin/NGen/usr/bin/xng
+set $project_name: "NAME_NGen14"
+project kind: transcriptome
+workflow kind: de_novo
+diskPath path: { "/zfs/venom/Ramses/Cerrophidion/NAME/05Ngen/" }
+set $TempDisk: "/zfs/venom/Ramses/Cerrophidion/NAME/05Ngen/TMP"
+set $ResultDisk: "/zfs/venom/Ramses/Cerrophidion/NAME/05Ngen/"
+set $mersize: 21
+set $matchQuery: 50
+set $matchTemplate: 80
+set $trim: false
+set $linkerFile: ""
+set $scan: false
+set $contaminateFile: ""
+set $deleteIntermediates: true
+; set up directory structure
+set $project_root:       "${ResultDisk}/${project_name}.Transcriptome"
+set $intermediatePath:     "${project_root}/Intermediate_Assembly_Results"
+set $linkerFile_default:    ""
+set $trim_default:      false
+; no contam
+set $scan_default:      false
+set $clusterPath:      "${intermediatePath}/cluster"
+set $intermediateFiles:     "${TempDisk}/intermediateFiles/${project_name}"
+set $assemblyPath:      "${project_root}/Assemblies"
+set $maxSeqs_default:     -1
+set $minClusterSizeToOutput_default:  100
+set $maxClusterSizeToOutput_default:  100000
+set $forceCluster_default:    true
+set $deleteIntermediates_default:  true
+set $ignorePolyMers_default:   true
+setDefaultDirectory defaultDirectory:   "${project_root}"
+; directory structure:
+;------------------------------------------
+;${project_name}.Transcriptome
+; Assemblies
+;  ${project_name}_AllUnassembled.fastq
+;  sub_0
+; Reports
+;  ${project_name}_AllTranscripts.searchresults
+; Transcripts
+;  ${project_name}_NGen14.fasta
+; Intermediate Assembly Results
+;  intermediateFiles
+;  cluster       (cluster all query reads and assemble them)
+;   rawStacks
+;   scripts
+;   seqs
+;   unassembled
+;   unclustered
+;   SNGCluster_Stats.txt
+;------------------------------------------
+;------------------------------------------
+; cluster the seqs and use SNG to assemble them
+@stackCluster
+rnaAssemble
+  query: {
+			{
+				file : "/zfs/venom/Ramses/Cerrophidion/NAME/03merged/NAME_pear.assembled.fastq"
+				SeqTech: IlluminaLongReads
+			}
+   trim: ${trim}
+   sngTrim: {
+    ; Vector trimming
+    setVectorParam  EndCutOff:  130
+        MatchSize:  11
+        MinTrimLength: 15
+
+    ;; xng will append the reads and destination params to this script
+    ; xng will set $queryTrimOutput
+    TrimVector
+     LinkerFile: "${linkerFile}"
+     ;
+     destination: "$${queryTrimOutput}"
+     ;reads: { }
+   }
+   scan: ${scan}
+   contaminateScan: {
+    assembleTemplate template: {
+
+     }
+     directoryQueryMer:  "intermediateFiles"
+     directoryTemplateMer:  "${ResultDisk}/templateMers/MerSize_${mersize}"
+     hits:     "intermediateFiles/$${project}.hits"
+     layout:     "intermediateFiles/$${project}.layout"
+     output:     "$${queryTrimOutput}"
+     unassembled:   "$${queryTrimOutput}_unassembled.fastq"
+     results:    "$${queryTrimOutput}_results.txt"
+     format:     none
+
+     deleteIntermediates: true
+     ignorePolyMers:   ${ignorePolyMers}
+   }
+  }
+;-----------  ;
+  maxSeqs: ${maxSeqs}
+  merSize: ${mersize}
+  merSkipQuery: 0
+  deleteIntermediates: ${deleteIntermediates}
+  forceMake: ${forceCluster}
+  directoryQueryMer: "${intermediateFiles}"
+  output:    "${clusterPath}"
+  assemblyFolder:  "${assemblyPath}"
+
+  clusterParam: {
+
+   minNewClusterSize: 5
+   minSingleMergeClusterSize: 7
+   minMultiMergeClusterSize : 7
+   minMultiMergeIgnoreFactor: 3.0
+   maxMergeSize: 50
+   minClusterSizeToOutput: ${minClusterSizeToOutput}
+   maxClusterSizeToOutput: ${maxClusterSizeToOutput}
+   ignorePolyMers:   ${ignorePolyMers}
+  }
+  ; how to run sng for all of the clusters that are built
+  ; xng will set $seqfile, $rootName, $clusterID
+  sngScript: {
+     setDefaultDirectory defaultDirectory: "."
+     setParam merLength: ${mersize}
+        minmatchPercent: 97
+        useRepeatHandling: false
+        minContigSeqs: 101
+     ;setPairSpecifier pairs:{ { forward:".*_([0-9]+)_f" reverse:".*_([0-9]+)_r" min:500 max:10000 } }
+     setAssemblyReport file: "$${resultName}" name:"cl_$${clusterID}"
+     loadSeq file: "$${seqfile}"
+     assemble
+
+     ; assemble the existing contigs, todo remove unassembled seqs
+     setParam minmatchPercent:85
+     assemble
+     WriteUnassembledSeqs file: "$${unassembledName}-unassembled.fastq"
+     nameContigs name: "cl_$${clusterID}" contigs: all
+
+     saveProject  file: "$${rootName}.sqd" openInSeqMan: false
+     saveProject  file: "$${rootName}.fas" format: fastaNoQual openInSeqMan: false
+
+     closeProject
+    }
+  sngAlign: true
+
+;------------------------------------------
+; generate the final transcript reports
+rnaClusterReports
+ output:   "Reports"
+ assemblyFolder: "${assemblyPath}"
+
+ trimReport:  "${stackCluster.trimResults}"
+ contamReport:   "${stackCluster.contaminateResults}"
+ clusterReport: "${clusterPath}/results.txt"
+quit
+```
+
+
+### Trinity
+
+```{bash,eval=FALSE}
+#!/bin/bash
+#
+#PBS -N Trinity
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate trinity_env
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate trinity_env
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    mkdir 06trinity
+    cd 06trinity
+    Trinity --seqType fq --CPU 18 --min_contig_length 200 --max_memory 95G --full_cleanup --output {}_trinity --single ../03merged/{}_pear.assembled.fastq"
+```
+
+## Post assembly modifications
+
+### Change names and merge
+
+change contig names with awk
+merge all contigs 
+remove redundant contigs with cd-hit
+
+```{bash,eval=FALSE}
+#PBS -N Concatenate
+#PBS -l select=1:ncpus=8:mem=8gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+
+source .bash_profile
+
+anaconda
+bio 
+
+cd $PBS_0_WORKDIR
+
+for i in `cat list1`
+do cd $i
+mkdir 07assembly
+awk '/^>/{print ">extenderContig" ++i; next}{print}' < 04extender/Final_Extender_contigs.fasta >  07assembly/${i}_extender.fasta
+awk '/^>/{print ">ngenContig" ++i; next}{print}' < 05Ngen/${i}_NGen14.Transcriptome/Transcripts/${i}_NGen14_NovelTranscripts.fas>  07assembly/${i}_ngen.fasta
+awk '/^>/{print ">trinityContig" ++i; next}{print}' < 06trinity/${i}_trinity/*.fasta >  07assembly/${i}_trinity.fasta
+cd 07assembly
+cat ${i}_extender.fasta ${i}_ngen.fasta ${i}_trinity.fasta > ${i}_assembly.fasta
+cd-hit-est -i ${i}_assembly.fasta -o ${i}_assembly_reduced.fasta -d 0 -c 1.0
+done
+```
+
+we had to increase memory use in cd-hit for some of the files, -M
+
+for one sequence we had to recompile cd-hit and increase the memory allowed 
+
+Warning:
+Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=new-maximum-length (e.g. make MAX_SEQ=10000000)
+
+to do this, download cd-hit from github and follow the instructions to compile and change maximun lenght.
+
+
+# Annotation
+
+## Toxcodan
+
+Toxcodan requires Signalp-4.1 and biopython=1.76
+
+### Toxins
+Annotation of Toxins
+
+```{bash,eval=FALSE}
+#PBS -N venomancer
+#PBS -l select=12:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.com
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate venomancer_env
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 " source .bash_profile
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate venomancer_env
+cd /zfs/venom/Ramses/Cerrophidion
+cd {}
+mkdir 12venomancer
+toxcodan.py -s {} -t 07assembly/{}_assembly_reduced.fasta -o 12venomancer -m /zfs/venom/Ramses/bin/ToxCodAn/models -c 18
+cd 12venomancer
+cat {}_Toxins_cds_Redundancyfiltered.fasta {}_PutativeToxins_cds_SPfiltered.fasta > {}_Toxins.fasta
+perl -p -i -e 's/>/>TOXIN_/g' {}_Toxins.fasta"
+```
+
+### Nontoxins
+
+you need to download the busco odb and pfam models before run this chunk, for more information see toxodan guide in github
+
+run hmmpress in Pfam moddel, this is not mentioned in toxcodan guide
+```{bash,eval=FALSE}
+cd /zfs/venom/Ramses/db/Pfam-A.hmm
+hmmpress Pfam-A.hmm
+```
+
+```{bash,eval=FALSE}
+#PBS -N venomancerNT
+#PBS -l select=13:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.com
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate venomancer_env
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 " source .bash_profile
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate venomancer_env
+cd /zfs/venom/Ramses/Cerrophidion
+cd {}
+mkdir 13nontoxins
+cp 12venomancer/{}_NonToxins_contigs.fasta ./13nontoxins/
+cd 13nontoxins
+codan.py -t {}_NonToxins_contigs.fasta -m /zfs/venom/Ramses/bin/CodAn/models/VERT_full -o {}_NonToxins_codan -18
+mv {}_NonToxins_codan/ORF_sequences.fasta {}_NonToxins_CDS.fasta
+NonToxinsAnnotation.py -t {}_NonToxins_CDS.fasta -d /zfs/venom/Ramses/db/swissprot -b /zfs/venom/Ramses/db/tetrapoda_odb10 -p /zfs/venom/Ramses/db/Pfam-A.hmm -c 18
+mv Annotation_output/annotated.fa {}_NonToxins_annotated.fasta"
+```
+
+
+## Manual annotation
+
+### Blast
+
+get unit prot data base
+
+```{bash,eval=FALSE}
+#download swiss prot data base
+wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
+
+#use pigz to decompres file
+anaconda
+bio
+pigz -d *.fasta.gz
+
+#then make db, is AA fasta, so is protein
+makeblastdb -in uniprot_sprot.fasta -dbtype prot
+```
+
+run blast
+
+```{bash,eval=FALSE}
+#PBS -N blast
+#PBS -l select=1:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate bio
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    mkdir 08blast
+    cd 08blast
+    blastx -query ../07assembly/{}_assembly_reduced.fasta -db /zfs/venom/Ramses/db/uniprot_sprot.fasta -outfmt 5 -num_threads 13 -evalue 0.00001 -out {}_blastUPT.xml"
+```
+
+### Annotation with scripts
+
+Blast parser
+
+```{bash,eval=FALSE}
+#PBS -N blast_parse
+#PBS -l select=13:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate bio
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    cd 08blast
+    /zfs/venom/Ramses/bin/RokytaScripts/Blast_parse_v6.py ../07assembly/{}_assembly_reduced.fasta {}_blastUPT.xml 90
+    mv keywords.fasta {}_Toxins.fasta; mv nontoxins.fasta {}_Nontoxins.fasta"
+```
+
+Autoannotator
+
+```{bash,eval=FALSE}
+#PBS -N autoannotate
+#PBS -l select=13:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate bio
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    mkdir 09autoannotate
+    cd 09autoannotate
+    /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotator.py -i ../08blast/{}_Toxins.fasta -r zfs/venom/Ramses/bin/RokytaScripts/Annotation_Databases/Snake_toxins_CDS.fasta -c cd-hit.est -ri Toxin -pf {} -p 0.80 -s signalp
+    /zfs/venom/Ramses/bin/RokytaScripts/Autoannotator.py -i ../08blast/{}_Nontoxins.fasta -r zfs/venom/Ramses/bin/RokytaScripts/Annotation_Databases/ChorrA_nontoxins_CDS.fasta -c cd-hit.est -ri Nontoxin -pf {} -p 0.80 -s signalp
+    python /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotatorFormat.py -i Annotated_{}_Toxins.fasta -f seqman2
+    python /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotatorFormat.py -i Annotatted_{}_Nontoxins.fasta -f seqman2"
+```
+
+```{bash,eval=FALSE}
+#problem with the nontoxins with Autoannotator.
+#the .pbs job did not work, however it worked with a interactive job and using for loop
+interactive
+anaconda
+bio
+Cerrophidion
+
+for i in `cat list1`
+do echo $i
+cd $i/09autoannotate
+python /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotatorFormat.py -i Annotated_*_Toxins.fasta -f seqman2
+python /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotatorFormat.py -i Annotated_*_Nontoxins.fasta -f seqman2
+cd ../..
+done 
+```
+
+
+NextAnnotate
+
+
+```{bash,eval=FALSE}
+#PBS -N nexannotate
+#PBS -l select=13:ncpus=16:mem=60gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_script
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source .bash_profile
+    module load anaconda3/5.1.0-gcc/8.3.1
+    source activate bio
+    cd /zfs/venom/Ramses/Cerrophidion
+    cd {}
+    mkdir 10nextannotate
+    cd 10nextannotate
+    /zfs/venom/Ramses/bin/AndrewScripts/NextAnnotate_v0.3.py -i ../09autoannotate/Unannotated_{}_Toxins.fasta -x ../08blast/{}_blastUPT.xml -pf {}"
+```
+
+
+```{bash,eval=FALSE}
+interactive 
+anaconda
+bio
+Cerrophidion
+
+for i in `cat list1`
+do cd $i/10nextannotate/NextAnnotator
+python /zfs/venom/Ramses/bin/RokytaScripts/AutoAnnotatorFormat.py -i Nextannotated_toxins.fasta -f seqman2
+cd ../../..
+done
+```
+
+### Annotation in Geneious
+
+move the sequences to a Desktop with Geneious
+
+make the directory structure suggested by Rokyta for Geneious and import the sequences
+
+Geneious/
+| Cgodm-CLPxxxx/
+| - | Toxins/
+| - | Nontoxins/
+| - | Unannotated/
+| - - | Toxins/
+| - - | Nontoxins/
+| - - | z_Trash/
+| - | Combined
+| - - | CDS
+
+for the toxins in unannotated folder
+
+make geneious to show all the CDS, use the xml files from blast to check if any of the CDS match with a toxin following the length and the percentace of similarity
+if there is a match annotate the toxin family and the name of the contig (TOXIN_<Toxin Family>_<contig name>) in the CDS then move the sequence to the annotated folder
+if there is not a match move the sequence to the trash folder
+
+to make this esier trim the xml files with the next code
+
+```{bash,eval=FALSE}
+#PBS -N autoannotate
+#PBS -l select=13:ncpus=16:mem=60gb:interconnect=fdr,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 "source ~/.bash_profile
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+cd /zfs/venom/Ramses/Cerrophidion
+cd {}/08blast
+XML_Barber_v3.py -f ../10nextannotate/NextAnnotator/Still_unannotated_toxins.fasta -x {}_blastUPT.xml -o {}_blastUPT_reduced.xml
+grep '>' ../10nextannotate/NextAnnotator/Still_unannotated_toxins.fasta > Still_unannotated_list
+perl -p -i -e 's/\>//g' Still_unannotated_list
+    for i in `cat Still_unannotated_list`
+    do echo $i
+    mkdir Bv
+    python /zfs/venom/Ramses/bin/RokytaScripts/BV.py ${i}_blastUPT_reduced2.xml ${i} > Bv/${i}_Bv 
+    done
+cd ../.."
+```
+
+
+### move back to palmetto
+
+export the CDS to a directory named 11finalannotation
+
+```{bash,eval=FALSE}
+#continuation afterr finish work in geneious and export the files as name_CDS.toxin in the directory 11finalannotation
+
+#create the folder with this code
+for i in `cat list1`
+do echo $i
+cd $i
+mkdir 11finalannotation
+cd ..
+done
+
+#then I can go back to cerrophidion and  run the next script
+conda activate bio
+#needs bioconda
+#wasn't working, I had to comment the next line
+##from sets import Set
+
+parallel -a list1 -j 2 --verbose "cd {}/11finalannotation
+/Users/ramsesrosales/Documents/bin/AndrewScripts/RemDupRemAmb.py -f {}_CDS.fasta -o {}"
+
+
+```
+
+then move it back to palmetto with a filezilla software.
+
+
+# Post Annotation Filters
+
+## Concatenate and Clean
+
+```{bash,eval=FALSE}
+#this is the previous corrections on the data before start with Chimera Killer
+
+#to revise the number of toxins 
+for i in `cat list1`
+do echo $i
+grep -c '>' $i/12venomancer/${i}_Toxins_cds_RedundancyFiltered.fasta
+grep -c '>' $i/12venomancer/${i}_Toxins_cds_SPfiltered_RedundancyFiltered.fasta
+grep -c '>' $i/12venomancer/${i}_PutativeToxins_cds_SPfiltered.fasta
+grep -c '>' $i/12venomancer/${i}_Toxins.fasta
+done
+
+#seen the number of contigs, the {}_Toxins.fasta is not concatenate correctly, I have to concatenate again with a for loop
+
+interactive
+Cerrophidion
+
+for i in `cat list1`
+do echo $i 
+cd $i/12venomancer
+cat ${i}_PutativeToxins_cds_SPfiltered.fasta ${i}_Toxins_cds_RedundancyFiltered.fasta > ${i}_Toxins.fasta
+perl -p -i -e 's/>/>TOXIN_/g' ${i}_Toxins.fasta
+cd ../..
+done
+
+
+#convine toxins and nontoxins of ToxCodAn, Venomancer
+
+for i in `cat list1`
+do echo $i 
+mkdir $i/14completeannotation
+cd $i/14completeannotation
+cat ../12venomancer/${i}_Toxins.fasta ../13nontoxins/${i}_NonToxins_annotated.fasta > ${i}_annotated.fasta
+cd ../..
+done
+```
+
+```{bash,eval=FALSE}
+#use parallel and CDHIT to concatenate manual and venomancer annotation and remove redundancy
+#PBS -N merge_annotation
+#PBS -l select=13:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 " source .bash_profile
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+cd /zfs/venom/Ramses/Cerrophidion
+cd {}/14completeannotation
+cat {}_annotated.fasta ../11finalannotation/{}_clean.fasta > {}_ma_toxcodan.fasta
+cd-hit-est -i {}_ma_toxcodan.fasta -o {}_annotated_reduced.fasta -d 0 -c 1.00 -M 95000
+cd ../.." 
+```
+
+
+
+## Chimera Killer
+
+modification to chimera killer code 
+```{bash,eval=FALSE}
+##########picard modified with new syntaxis
+https://github.com/broadinstitute/picard/wiki/Command-Line-Syntax-Transition-For-Users-(Pre-Transition)
+
+command = bwa + " mem -M -t " + str(procs) + " -R \'@RG\\tID:" + input.name + "\\tSM:" + reads.name + "' " + input.name + " " + reads.name + " | " + grepNM  + " > tmp1.sam"
+subprocess.call(command,shell=True)
+# Create a sorted bam file
+command = picard + " SortSam -INPUT tmp1.sam -OUTPUT tmp2.bam -SORT_ORDER coordinate -USE_JDK_DEFLATER true -USE_JDK_INFLATER true"
+subprocess.call(command,shell=True)
+command = picard + " BuildBamIndex -INPUT tmp2.bam -USE_JDK_DEFLATER true -USE_JDK_INFLATER=true"
+subprocess.call(command,shell=True)
+# Remove overclipped reads
+command = picard + " CreateSequenceDictionary -REFERENCE " + input.name + " -OUTPUT " + input.name.split(".")[0] + ".dict -USE_JDK_DEFLATER true -USE_JDK_INFLATER true"
+subprocess.call(command,shell=True)
+command = samtools + " faidx " + input.name
+subprocess.call(command,shell=True)
+```
+
+```{bash,eval=FALSE}
+#PBS -N ChimeraKiller
+#PBS -l select=13:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate bio
+
+cd $PBS_O_WORKDIR
+
+parallel -a list1 --sshloginfile $PBS_NODEFILE -j1 " source .bash_profile
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate chimerakiller_env 
+cd /zfs/venom/Ramses/Cerrophidion
+mkdir {}/15chimerakiller
+cd {}/15chimerakiller
+cp ../14completeannotation/{}_annotated_reduced.fasta .
+ChimeraKiller_v0.7.3.py -i {}_annotated_reduced.fasta  -r ../03merged/{}_pear.assembled.fastq -d 0.75 -p 18"
+```
+
+Notes:
+use the full path for ChimeraKiller input
+
+some characters in the names can produce errors, as "="
+
+move the 15chimerakiller to Desktop, check the coverage plots of the toxins and move any souspicious chimera from good to bad folder and any contig that look god from bad to good
+
+
+# Consense Transcriptomes
+
+## Cluster contigs
+
+
+```{bash,eval=FALSE}
+interactive #alias to start a interactive job
+Cerrophidion #alias to go to directory with the samples
+
+for i in `cat list1`
+do echo $i
+mkdir $i/16transcriptome
+cd $i/15chimerakiller/fastas/good
+cat *.fasta >> /Users/ramsesrosales/Desktop/Cerrophidion/${i}/16transcriptome/${i}_transcriptome_v0.fasta
+cd /Users/ramsesrosales/Desktop/Cerrophidion/${i}/16transcriptome/
+cd-hit-est -i ${i}_transcriptome_v0.fasta -o ${i}_transcriptome_v1.fasta -d 0 -c 0.99 -M 15000
+done
+```
+
+
+## Rsem
+```{bash,eval=FALSE}
+
+ls -d *Cgod* > ID_Cgodm
+ls -d *Ctzot* > ID_Ctzot
+ls -d *Cpetl* > ID_Cpetl
+#ls -d *Csasa* > ID_sasa do this at the start is more efficient, I didn't
+
+ls ID_* >species
+perl -p -i -e 's/ID_//g' species
+
+for i in `cat species`
+do mkdir -p ${i}_transcriptome/01transcriptome
+cat $i-*/16transcriptome1/*transcriptome_v1.fasta >> ${i}_transcriptome/01transcriptome/${i}_consensus_v0.fasta
+cd ${i}_transcriptome/01transcriptome
+cd-hit-est -i ${i}_consensus_v0.fasta -o ${i}_consensus_v1.fasta -d 0 -c 0.98 -M 15000
+mkdir ../02rsem
+cd ../02rsem
+rsem-prepare-reference --bowtie2 ../01transcriptome/${i}_consensus_v1.fasta ${i}_Reference
+cd ../..
+done
+
+for i in `cat species`
+do echo $i
+cd ${i}_transcriptome/02rsem
+for j in `cat ../../ID_${i}`
+do echo $j
+rsem-calculate-expression --bowtie2 ../../$j/03merged/${j}_pear.assembled.fastq ${i}_Reference $j
+rsem-plot-model $j ${j}_diagnostic.pdf
+done
+cd ../..
+done 
+
+#for Csasai
+
+mkdir Csasai_transcriptome
+cd Csasai_transcriptome
+mkdir 01transcriptome
+cp ../Csasa-LIAP244/16transcriptome1/*transcriptome_v1.fasta  /01transcriptome/
+mkdir 02rsem
+cd 02rsem
+rsem-prepare-reference --bowtie2 ../16transcriptome/*_consensus_v1.fasta Csasa-LIAP244_Reference
+rsem-calculate-expression --bowtie2 ../../Csasa-LIAP244/03merged/Csasa-LIAP244_pear.assembled.fastq Csasa_Reference Csasa-LIAP244
+rsem-plot-model Csasa-LIAP244 Csasa-LIAP244_diagnostic.pdf
+
+
+```
+
+
+## Fancy Plots
+
+```{bash,eval=FALSE}
+r_4 # alias to load R module
+
+for i in `cat species`
+do echo $i
+cd ${i}_transcriptome/02rsem
+cp ../../ID_${i} .
+data_frame_consense.R -l ID_${i}
+consense.R -i ID_${i}_rsem_Cerrophidion.csv -s $i
+FancyPlots3.R -i ID_${i}_rsem_Cerrophidion.csv -n ID_${i}
+FancyPlotsAverage.R -i ${i}_consense_df.csv -n ${i}_Average
+cd ../../
+done
+
+cd Csasai_transcriptome/02rsem
+data_frame_consense.R -n Csasa-LIAP244
+consense.R -i ID_Csasa-LIAP244_rsem_Cerrophidion.csv -s Csasa
+echo Csasa-LIAP244 > ID_Csasa
+FancyPlots3.R -i ID_${i}_rsem_Cerrophidion.csv -n ID_Csasa
+
+
+cd Cgodm_transcriptome/02rsem
+FancyPlotAverageNS.R -i Cgodm_consense_df.csv -l NS_list -n Cgodm
+cd ../../
+
+cd Ctzot_transcriptome/02rsem
+FancyPlotAverageNS.R -i Ctzot_consense_df.csv -l NS_list -n Ctzot
+cd ../../
+
+```
+
+
+
+## Differential expression
+
+### Prepare expected count data frame
+
+```{bash,eval=FALSE}
+r_4 # alias to load R module
+
+
+for i in `cat species`
+do echo $i
+cd ${i}_transcriptome/02rsem
+consense_expected_count.R -i ID_${i}_rsem_Cerrophidion.csv -s $i
+cd ../../
+done
+```
+
+change names to <species>_<toxin family>_<ordered rank of expression of toxins>
+
+```{bash,eval=FALSE}
+for i in `cat species`
+do echo $i
+cd ${i}_transcriptome/02rsem
+ToxNames.R -i ${i}_consense_ExpCounts_df.csv -m . -s $i
+cd ../../
+done
+
+```
+
+### Run DESeq2 Edger
+```{bash,eval=FALSE}
+module purge #remove r module
+anaconda # add conda module
+source activate Dif_Exp_env #activate environment with Edger and DESeq2 installed
+## set default of treatmen as c(Pop,SVL) in the Rscript
+
+cd Cgodm_transcriptome/02rsem
+Dif_Exp_Cerrophidion.R -i Cgodm_consense_ExpCounts_df.csv -m  ../../Cerrophidion_specimens1.csv -s Cgodm
+cd ../../
+
+cd Ctzot_transcriptome/02rsem
+Dif_Exp_Cerrophidion.R -i Ctzot_consense_ExpCounts_df.csv -m  ../../Cerrophidion_specimens1.csv -s Ctzot
+cd ../../
+
+cd Cpetl_transcriptome/02rsem
+Dif_Exp_Cerrophidion.R -i Cpetl_consense_ExpCounts_df.csv -m  ../../Cerrophidion_specimens1.csv -s Cpetl -t SVL
+cd ../../
+
+```
+
+```{bash,eval=FALSE}
+module purge
+r_4
+
+cd Cgodm_transcriptome/02rsem
+cd Dif_Exp
+Dif_Exp_Tab.R -i ../Cgodm_consense_ExpCount_df.csv -s Cgodm -p T
+cd ../../..  
+
+cd Ctzot_transcriptome/02rsem
+cd Dif_Exp
+Dif_Exp_Tab.R -i ../Ctzot_consense_ExpCount_df.csv -s Ctzot -p T
+cd ../../..
+
+cd Cpetl_transcriptome/02rsem
+cd Dif_Exp
+Dif_Exp_Tab.R -i ../Cpetl_consense_ExpCount_df.csv -s Cpetl -p F
+cd ../../..
+
+done 
+```
+
+### Heatmaps
+All toxins heatmap organized by toxin family
+```{bash,eval=FALSE}
+module purge
+r_4
+
+cd Cgodm_transcriptome/02rsem
+cd Dif_Exp
+Cerrophidion_HeatMap_AverageExpressionOrder.R -i ../Cgodm_consense_df.csv -m ../../Cerrophidion_specimens1.csv -d Cgodm_DifExp_tab.csv -s Cgodm -p T  -t Cgodm_DifExp_TF_tab.csv -c T -w 1500 -e 1800
+cd ../../..
+
+cd Ctzot_transcriptome/02rsem
+cd Dif_Exp
+Cerrophidion_HeatMap_AverageExpressionOrder.R -i ../Ctzot_consense_df.csv -m ../../Cerrophidion_specimens1.csv -d Ctzot_DifExp_tab.csv -s Ctzot -p T  -t Ctzot_DifExp_TF_tab.csv -c T -w 1200 -e 1500
+cd ../../..
+
+
+cd Cpetl_transcriptome/02rsem
+cd Dif_Exp
+Cerrophidion_HeatMap_AverageExpressionOrder.R -i ../Cpetl_consense_df.csv -m ../../Cerrophidion_specimens1.csv -d Cpetl_DifExp_tab.csv -s Cgodm -p F  -t Cpetl_DifExp_TF_tab.csv -c T -w 1200 -e 1500
+cd ../../..
+done 
+```
+
+
+heatmap for figure
+
+```{bash,eval=FALSE}
+
+#scritp that works for Cgodm only, it can be modified in the script changing rn<-read_csv("../Cgodm_ToxNames.csv") by the path to the file with the ordered toxin names.
+cd Cgodm_transcriptome/02rsem
+cd Dif_Exp
+Cerrophidion_HeatMap_order_difExp.R -i ../Cgodm_consense_df.csv -m ../../Cerrophidion_specimens1.csv -d Cgodm_DifExp_tab.csv -s Cgodm -p T  -t Cgodm_DifExp_TF_tab.csv -c T -w 1500 -e 1800
+cd ../../..
+```
+
+# PLA2s Phylogeny
+
+## Get PLA2s secuences
+
+```{bash,eval=FALSE}
+mkdir PLA2s
+./extractTF.sh PLA2 /zfs/venom/Ramses/Cerrophidion/PLA2s
+```
+
+code in ./extractTF.sh
+
+it also run a Rscript to rename the fasta, the names by default are the <species abrebiation>_<toxin family>_<# as they appear in the fasta file>
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+###this program expect two arguments
+###the first one is the name of the toxin family
+### the second one is the output path respect to the Cerrophidion folder
+### it uses a list with the abbreviation of the species
+## the consense transcriptomes should be in a directory call final_transcriptomes and named in the format
+# <Species abreviation>_consense_v1.fasta
+
+A=$(pwd)
+
+for i in `cat Species`
+do echo $i
+cd final_transcriptomes
+grep -A1 -e $1 ${i}_consensus_v1.fasta | grep -A1 'TOXIN' > ${i}_${1}.fasta
+perl -p -i -e "s/TOXIN/${i}_TOXINS/g" ${i}_${1}.fasta
+cd ..
+mv final_transcriptomes/${i}_${1}.fasta $2/${i}_${1}.fasta
+module load r/4.0.2-gcc/8.3.1
+cd $2
+Rename_Fasta_Headers.R -i ${i}_${1}.fasta -p ${i}_${1}
+cat ${i}_${1}_renamed.fasta >> Cerrophidion_${1}.fasta
+cd $A
+done
+```
+
+add Csasai
+
+```{bash,eval=FALSE}
+interactive
+r_4
+cd /zfs/venom/Ramses/Cerrophidion/PLA2s 
+mkdir All_PLA2s
+
+grep -E --no-group-separator -A1 \>TOXIN.*PLA2 ../final_transcriptomes/Csasa-LIAP244_transcriptome_v1.fasta > Csasa_PLA2.fasta
+perl -pi -e "s/>TOXIN/>Csasa_TOXIN/g" Csasa_PLA2.fasta
+
+Rename_Fasta_Headers.R -i Csasa_PLA2.fasta -p Csasa_PLA2
+```
+
+combine PLA2s and add Whintintton et al. sequences
+
+```{bash,eval=FALSE}
+cat Rooted_Crotalus_PLA2_Alignment_2017.fasta >> All_PLA2s/Combined_PLA2s.fasta
+perl -pi -e 's/>([A-Z][a-z]{4}[AB]*_PLA2_[\d]).*/>$1/g' All_PLA2s/Combined_PLA2s.fasta
+perl -pi -e 's/>A23025___HGH_CDS\ PLA2\ HGH\ gene/>Pbivi_PLA2/g' All_PLA2s/Combined_PLA2s.fasta
+perl -pi -e 's/\-//g' All_PLA2s/Combined_PLA2s.fasta
+
+cat *_PLA2_renamed.fasta >> All_PLA2s/Combined_PLA2s.fasta
+perl -pi -e 's/\-//g' All_PLA2s/Combined_PLA2s.fasta
+
+```
+
+## Alignment, Cleaning and Triminig
+
+```{bash,eval=FALSE}
+module purge
+anaconda 
+bio
+
+mafft --auto --adjustdirectionaccurately --thread 20 Combined_PLA2s.fasta > Combined_PLA2s.aln.fasta
+CIAlign --infile Combined_PLA2s.aln.fasta --outfile_stem Combined_PLA2s --remove_divergent --remove_divergent_minperc 0.80 --remove_insertions --crop_ends --remove_short --plot_input --plot_output
+trimal -in Combined_PLA2s_cleaned.fasta -out Combined_PLA2s_trim.fasta -strictplus
+
+grep -A1 ">Pbivi" Combined_PLA2s.fasta >> Combined_PLA2s_trim.fasta
+mafft --auto --adjustdirectionaccurately --thread 20 Combined_PLA2s_trim.fasta > Combined_PLA2s_trim.aln.fasta
+trimal -in Combined_PLA2s_trim.aln.fasta -out Combined_PLA2s_trim.aln.trim.fasta -strictplus
+
+```
+
+
+## Phylogenetic tree
+
+```{bash,eval=FALSE}
+iqtree -s Combined_PLA2s_trim.aln.trim.fasta -bb 1000 -seed 12345 -T 20
+```
+
+Resulting consensus tree
+
+```{bash,eval=FALSE}
+(Ctigr_PLA2_1:0.0071808299,Cscut_PLA2_3:0.0138392688,(ChorrA_PLA2_1:0.0060789179,(((((((((((((((((((((((((Cadam_PLA2_1:0.0069088584,(Catro_PLA2_1:0.0032065679,Cscut_PLA2_1:0.0070629994)100:0.0289900568)92:0.0035867986,ChorrA_PLA2_3:0.0033199489)100:0.0422232765,Cmitc_PLA2_4:0.0280745262)85:0.0125211580,Ccera_PLA2_1:0.0324412828)86:0.0043057708,Scate_PLA2_1:0.0480384614)86:0.0020679235,(ChorrB_PLA2_1:0.0139146679,Cgodm_PLA2_25:0.0034135835)99:0.0069177666)89:0.0141037082,Clepi_PLA2_1:0.0033882139)86:0.0031636477,(Clepi_PLA2_3:0.0000026611,Ctzot_PLA2_12:0.0042109663)100:0.0120398672)87:0.0049784275,Smili_PLA2_2:0.0402956150)92:0.0186003677,((Acont_PLA2_3:0.0216585390,Apisc_PLA2_2:0.0103064507)100:0.0117697302,(Acont_PLA2_1:0.0345213552,Apisc_PLA2_3:0.0388719525)99:0.0181557558)99:0.0090990382)92:0.0171654972,((((((Cscut_PLA2_2:0.0000026611,Ctzot_PLA2_11:0.0000026611)100:0.0034251951,Ctigr_PLA2_2:0.0000026611)100:0.0109049265,ChorrA_PLA2_2:0.0030432607)100:0.0562025606,Csasa_PLA2_4:0.0269185225)99:0.0139799195,Cgodm_PLA2_10:0.0238025961)98:0.0189077119,Cgodm_PLA2_19:0.0324373294)99:0.0166971120)99:0.0336919790,(((Cgodm_PLA2_4:0.0035664444,((Cpetl_PLA2_2:0.0000026611,Ctzot_PLA2_1:0.0068650402)49:0.0000026611,(Cpetl_PLA2_7:0.0000026611,Ctzot_PLA2_10:0.0139492538)100:0.0791594983)84:0.0137592783)67:0.0033737261,Csasa_PLA2_2:0.0252903079)71:0.0131158971,Cgodm_PLA2_13:0.0223139603)71:0.0084972024)90:0.0440226036,Cgodm_PLA2_14:0.0495711643)44:0.0066576033,Cgodm_PLA2_6:0.0268445273)93:0.0266964254,((((((((Acont_PLA2_2:0.0057500573,(Apisc_PLA2_1:0.0032338194,Csasa_PLA2_5:0.0137961856)100:0.0153610888)100:0.0556893902,(((Catro_PLA2_3:0.0280841046,Cmitc_PLA2_1:0.0032211081)95:0.0065489450,Cpetl_PLA2_6:0.0075805056)100:0.0430941201,((((Cgodm_PLA2_1:0.0000026611,Csasa_PLA2_1:0.0000026611)73:0.0000026611,Cgodm_PLA2_8:0.0757652108)65:0.0010373736,Ctzot_PLA2_6:0.0090850006)74:0.0102584297,((Cgodm_PLA2_5:0.0145651567,(Ctzot_PLA2_14:0.0689906449,Ctzot_PLA2_9:0.0000026611)79:0.0060258462)72:0.0066766879,Ctzot_PLA2_4:0.0112981531)80:0.0109864533)85:0.0093270451)89:0.0272864087)89:0.0231520105,(Cgodm_PLA2_22:0.0863372102,Ctzot_PLA2_8:0.0295472092)100:0.1390084223)54:0.0126992956,(Ctzot_PLA2_2:0.0039420028,Ctzot_PLA2_15:0.0040149752)99:0.0150069545)59:0.0216102545,(Cgodm_PLA2_20:0.0007894146,Cgodm_PLA2_23:0.0345066912)84:0.0045127552)60:0.0557567618,Cgodm_PLA2_21:0.0105581896)64:0.0538676080,Pbivi_PLA2:0.9667464454)44:0.0188517021,Cgodm_PLA2_9:0.0130380207)67:0.0586408990)93:0.0422357384,((Cgodm_PLA2_3:0.0000026678,(Csasa_PLA2_3:0.0033842120,Ctzot_PLA2_13:0.0246005402)99:0.0069901933)99:0.0481118444,Cgodm_PLA2_18:0.0023904179)92:0.0298467177)100:0.0932578669,Scate_PLA2_2:0.0024953456)66:0.0223332909,Smili_PLA2_1:0.0071432111)65:0.0065919016,(Catro_PLA2_2:0.0068543833,Cmitc_PLA2_3:0.0034034085)97:0.0103184824)66:0.0035950730,Cmitc_PLA2_2:0.0284764590)65:0.0026683711,Clepi_PLA2_2:0.0182664256)73:0.0287394420,(((Cgodm_PLA2_24:0.0071148974,Cgodm_PLA2_7:0.0000026611)100:0.0438486823,Ctzot_PLA2_5:0.0223565622)76:0.0171450688,Cpetl_PLA2_3:0.0457903577)51:0.0127220680)45:0.0000022558,(Cpetl_PLA2_1:0.0000026611,Ctzot_PLA2_3:0.0033966159)94:0.0034075907)69:0.0034277437,Cgodm_PLA2_2:0.0068091193)100:0.0993029960,Cgodm_PLA2_11:0.0320657482)99:0.0524897963)98:0.0078419348);
+```
+
+
+# Sequence Diversity 1
+
+## Busco and Phylogenetics
+
+### Busco
+
+busco 5 installed in a conda environment and run with a pbs file
+
+```{bash,eval=FALSE}
+qsub Busco2.pbs
+```
+
+```{bash,eval=FALSE}
+#PBS -N Busco_locus
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/2020.07-gcc/8.3.1
+source activate Busco_env
+
+cd $PBS_O_WORKDIR
+
+parallel -a ../list1 -j13 "cd /zfs/venom/Ramses/Cerrophidion/Busco/
+busco -i /zfs/venom/Ramses/Cerrophidion/{}/07assembly/{}_assembly_reduced.fasta -o {}_Busco -m transcriptome -l /zfs/venom/Ramses/bin/Venomancer/non_toxin_models/tetrapoda_odb10"
+```
+
+run BuscoCleaner.py available at https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts
+
+```{bash,eval=FALSE}
+#pbs script for this
+#PBS -N Busco_cleaner
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+module load anaconda3/2020.07-gcc/8.3.1
+source activate Busco_cleaner_env
+
+cd $PBS_O_WORKDIR
+cd phylogenomics
+for i in `cat ../../list1`
+do BuscoCleaner.py -f $i -n $I
+done 
+```
+
+
+### Prepare sequences 
+  
+merge busco sequences for all individuals
+
+```{bash,eval=FALSE}
+./tmp.list_phylogenomics.sh
+```
+
+code of tmp.list_phylogenomics.sh 
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+for i in $(ls | grep 'run_C')
+do echo $i
+cd $i/BuscoCleaner
+ls >> /zfs/venom/Ramses/Cerrophidion/Busco/phylogenomics/tmp.list
+cd /zfs/venom/Ramses/Cerrophidion/Busco
+done
+
+
+cd phylogenomics
+perl -p -i -e "s/.fasta//g" tmp.list
+sort tmp.list | uniq > tmp.list1
+sort tmp.list | uniq -c > tmp.list_counts
+
+mkdir BuscoSeq
+
+for i in $(cat tmp.list1)
+do echo $i
+cat ../run*/BuscoCleaner/${i}.fasta >> BuscoSeq/${i}_Cerrophidion.fasta
+done
+```
+
+
+```{bash,eval=FALSE}
+mkdir all_genes
+mv BuscoSeq all_genes
+```
+
+### All genes
+#### Alignment, Cleaning and Triminig
+
+```{bash,eval=FALSE}
+#PBS -N GeneTrees
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+cd /zfs/venom/Ramses/Cerrophidion/Busco/phylogenomics/all_genes
+
+./clean.sh
+```
+
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+mkdir 01_aln
+mkdir 02_CIAlign
+mkdir 03_treeshrink
+mkdir 04_CIAlign2
+mkdir 05_trimal
+mkdir 06_genetrees
+mkdir 07_speciestrees
+
+module load anaconda3/2020.07-gcc/8.3.1
+source activate bio
+parallel -a ../tmp.list1 -j 20 "echo {}
+       mafft --auto --adjustdirectionaccurately --thread 2 BuscoSeq/{}_Cerrophidion.fasta > 01_aln/{}.aln.fasta
+       CIAlign --infile 01_aln/{}.aln.fasta --outfile_stem 02_CIAlign/{} --remove_divergent --remove_divergent_minperc 0.80 --remove_insertions --crop_ends --remove_short
+       cd 02_CIAlign
+       iqtree -s {}_cleaned.fasta -bb 1000 -seed 12345 -T 2
+       cd ../03_treeshrink
+       mkdir {}
+       cp ../02_CIAlign/{}_cleaned.fasta {}/input.fasta
+       cp ../02_CIAlign/{}_cleaned.fasta.contree {}/input.tree"
+
+conda deactivate
+
+
+source activate treeshrink_env
+run_treeshrink.py -i 03_treeshrink -t input.tree -a input.fasta
+conda deactivate
+
+source activate bio
+parallel -a ../tmp.list1 -j 20 --verbose "echo {}
+       CIAlign --infile 03_treeshrink/{}/output.fasta --outfile_stem 04_CIAlign2/{} --remove_divergent --remove_insertions --crop_ends --remove_short
+       trimal -in 04_CIAlign2/{}_cleaned.fasta -out 05_trimal/{}.fasta -strictplus"
+```
+
+#### Gene trees and Species trees
+
+```{r}
+sort -h  tmp.list_counts | grep -E "(7 |8 |9 |10 |11 |12 |13 |14 )" | cut -d " " -f 7 > half_list
+```
+
+
+```{bash,eval=FALSE}
+#PBS -N Species_tree
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+cd /zfs/venom/Ramses/Cerrophidion/Busco/phylogenomics/all_genes
+
+./gene_tree.sh
+```
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+module load anaconda3/2020.07-gcc/8.3.1
+source activate bio
+
+cd 05_trimal
+ls *.fasta > ../gene_list
+cd ..
+
+perl -p -i -e "s/\.fasta//g" gene_list
+
+cd 06_genetrees
+
+parallel -a ../gene_list -j 20 --verbose "echo {}
+cp ../05_trimal/{}.fasta .
+iqtree -s {}.fasta -bb 1000 -seed 12345 -T 2
+rm {}.fasta"
+
+cd ../07_speciestrees
+cat ../06_genetrees/*.treefile >> Cerrophidion_Busco_genes.tre
+
+for i in `cat ../gene_list`
+do echo $i
+perl -pi -e "s/${i}\|//g" Cerrophidion_Busco_genes.tre
+done
+
+java -jar /zfs/venom/Ramses/bin/ASTRAL/Astral/astral.5.7.7.jar -i Cerrophidion_Busco_genes.tre -o Cerrophidion_astral.tree
+```
+
+### Core-Genes
+#### Subset core-genes 
+
+```{bash,eval=FALSE}
+grep "14 " tmp.list_counts | cut -d " " -f 7 > core_gene_list
+```
+
+```{bash,eval=FALSE}
+./subset_trimal.sh core_genes core_gene_list
+```
+
+```{bash,eval=FALSE}
+#!/bin/bash
+#first argument name of the new directory
+#second argument list of genes to subset from all_genes/trimal
+
+mkdir $1
+
+cd $1
+mkdir 05_trimal
+mkdir 06_genetrees
+mkdir 07_speciestrees
+
+for i in $(cat ../$2)
+do echo $i
+cp ../all_genes/05_trimal/${i}.fasta 05_trimal
+done
+```
+
+
+#### Concatenated tree
+
+```{bash,eval=FALSE}
+./concatenate.sh
+```
+
+
+```{bash,eval=FALSE}
+#/bin/bash
+
+cd 08_concatenatedtree
+cp ../05_trimal/*  .
+
+for i in `cat ../gene_list`
+do echo $i
+perl -pi -e "s/${i}\|//g" ${i}.fasta
+done
+
+cd ..
+
+Concatenate4PartitionFinder.py -d 08_concatenatedtree -o Cerrophidion_core_genes_concat.phy
+```
+
+```{bash,eval=FALSE}
+cd /08_concatenatedtree/Concatenated
+iqtree -s Cerrophidion_core_genes_concat.phy -B 1000 -seed 12345 -T 2
+```
+
+
+### Beast
+
+prepare .xml for beast using the concatenated sequences
+fix the species tree from astral topology by manually editing the .xml file following  
+
+resulting tree
+
+
+```{bash,eval=FALSE}
+#NEXUS
+
+Begin taxa;
+	Dimensions ntax=14;
+		Taxlabels
+			Cgodm-CLP2359
+			Cgodm-CLP2360
+			Cgodm-CLP2362
+			Cgodm-CLP2377
+			Cgodm-CLP2378
+			Cgodm-CLP2388
+			Cgodm-CLP2903
+			Cpetl-CLP2324
+			Cpetl-CLP2326
+			Cpetl-CLP2327
+			Csasa-LIAP244
+			Ctzot-CLP2364
+			Ctzot-CLP2366
+			Ctzot-CLP2383
+			;
+End;
+Begin trees;
+	Translate
+		   1 Cgodm-CLP2359,
+		   2 Cgodm-CLP2360,
+		   3 Cgodm-CLP2362,
+		   4 Cgodm-CLP2377,
+		   5 Cgodm-CLP2378,
+		   6 Cgodm-CLP2388,
+		   7 Cgodm-CLP2903,
+		   8 Cpetl-CLP2324,
+		   9 Cpetl-CLP2326,
+		  10 Cpetl-CLP2327,
+		  11 Csasa-LIAP244,
+		  12 Ctzot-CLP2364,
+		  13 Ctzot-CLP2366,
+		  14 Ctzot-CLP2383
+;
+tree TREE1 = (((((1[&height=1.0050774365444957E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=8.778420754824439E-4,length_95%_HPD={8.169001116809678E-4,9.388763175474709E-4},length_median=8.77618596197962E-4,length_range={7.500500135904113E-4,0.0010284006680721153}]:8.778420754824437E-4,6[&height=1.0050774365444957E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=8.778420754824439E-4,length_95%_HPD={8.169001116809678E-4,9.388763175474709E-4},length_median=8.77618596197962E-4,length_range={7.500500135904113E-4,0.0010284006680721153}]:8.778420754824437E-4)[&CAheight_95%_HPD={8.169001116809683E-4,9.388763175474713E-4},CAheight_mean=8.778420754824439E-4,CAheight_median=8.77618596197962E-4,CAheight_range={7.500500135904117E-4,0.0010284006680721153},height=8.778420754824439E-4,height_95%_HPD={8.169001116809683E-4,9.388763175474713E-4},height_median=8.77618596197962E-4,height_range={7.500500135904117E-4,0.0010284006680721153},length=1.6162322398797013E-4,length_95%_HPD={1.1995286244351915E-4,2.056333325441207E-4},length_median=1.6078877539859476E-4,length_range={8.624431272749849E-5,2.736705810981431E-4},posterior=1.0]:1.6162322398798816E-4,3[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0010394652994704318,length_95%_HPD={9.755692035630689E-4,0.001103168975456126},length_median=0.0010392066801177763,length_range={9.023311478662667E-4,0.0011979399505423253}]:0.001039465299470432)[&CAheight_95%_HPD={9.755692035630689E-4,0.001103168975456126},CAheight_mean=0.001039465299470432,CAheight_median=0.0010392066801177763,CAheight_range={9.023311478662671E-4,0.0011979399505423253},height=0.001039465299470432,height_95%_HPD={9.755692035630689E-4,0.001103168975456126},height_median=0.0010392066801177763,height_range={9.023311478662671E-4,0.0011979399505423253},length=2.676702781629332E-4,length_95%_HPD={2.0861914730945972E-4,3.2937910837202997E-4},length_median=2.667214918513673E-4,length_range={1.5312021664275763E-4,4.309512862943224E-4},posterior=1.0]:2.6767027816291524E-4,2[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0013071355776333473,length_95%_HPD={0.0012352411459403015,0.001382657645218907},length_median=0.0013068687713386402,length_range={0.0011581984771333255,0.0014763533143210277}]:0.0013071355776333473)[&CAheight_95%_HPD={0.001235241145940302,0.001382657645218907},CAheight_mean=0.0013071355776333473,CAheight_median=0.0013068687713386402,CAheight_range={0.0011581984771333255,0.0014763533143210277},height=0.0013071355776333473,height_95%_HPD={0.001235241145940302,0.001382657645218907},height_median=0.0013068687713386402,height_range={0.0011581984771333255,0.0014763533143210277},length=0.0013419555185464557,length_95%_HPD={0.0012414453350213606,0.0014443881144931585},length_median=0.0013418574605971244,length_range={0.0010902288860664524,0.0015822794247145888},posterior=1.0]:0.0013419555185464318,((4[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0014639925022494414,length_95%_HPD={0.0013761058741564574,0.0015527067702359521},length_median=0.0014636503877548052,length_range={0.001264945223343554,0.0016672136698950334}]:0.0014639925022494416,5[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0014639925022494414,length_95%_HPD={0.0013761058741564574,0.0015527067702359521},length_median=0.0014636503877548052,length_range={0.001264945223343554,0.0016672136698950334}]:0.0014639925022494416)[&CAheight_95%_HPD={0.0013761058741564578,0.0015527067702359521},CAheight_mean=0.0014639925022494416,CAheight_median=0.0014636503877548052,CAheight_range={0.001264945223343554,0.0016672136698950334},height=0.0014639925022494416,height_95%_HPD={0.0013761058741564578,0.0015527067702359521},height_median=0.0014636503877548052,height_range={0.001264945223343554,0.0016672136698950334},length=7.01819689631679E-4,length_95%_HPD={6.098456383823796E-4,7.956310268900661E-4},length_median=7.012416956647264E-4,length_range={4.8497669656724076E-4,9.212459635897022E-4},posterior=1.0]:7.018196896317083E-4,(((7[&height=1.0083067007602771E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=7.457522843337545E-4,length_95%_HPD={6.885095426996304E-4,8.042326568191687E-4},length_median=7.455131480917608E-4,length_range={6.226015505274244E-4,8.710001403254685E-4}]:7.457522843337546E-4,12[&height=1.0083067007602771E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=7.457522843337545E-4,length_95%_HPD={6.885095426996304E-4,8.042326568191687E-4},length_median=7.455131480917608E-4,length_range={6.226015505274244E-4,8.710001403254685E-4}]:7.457522843337546E-4)[&CAheight_95%_HPD={6.885095426996304E-4,8.042326568191687E-4},CAheight_mean=7.457522843337547E-4,CAheight_median=7.455131480917608E-4,CAheight_range={6.226015505274244E-4,8.710001403254685E-4},height=7.457522843337547E-4,height_95%_HPD={6.885095426996304E-4,8.042326568191687E-4},height_median=7.455131480917608E-4,height_range={6.226015505274244E-4,8.710001403254685E-4},length=5.727553871717408E-4,length_95%_HPD={5.069008602074023E-4,6.378494674228925E-4},length_median=5.724070085215416E-4,length_range={4.3319734719019973E-4,7.206397946196194E-4},posterior=1.0]:5.72755387171745E-4,(13[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0010406395861527404,length_95%_HPD={9.787213836348317E-4,0.00110580345487167},length_median=0.0010404019925279455,length_range={8.88232252673482E-4,0.0011899323503449296}]:0.0010406395861527404,14[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0010406395861527404,length_95%_HPD={9.787213836348317E-4,0.00110580345487167},length_median=0.0010404019925279455,length_range={8.88232252673482E-4,0.0011899323503449296}]:0.0010406395861527404)[&CAheight_95%_HPD={9.787213836348317E-4,0.00110580345487167},CAheight_mean=0.0010406395861527404,CAheight_median=0.001040401992527946,CAheight_range={8.88232252673482E-4,0.0011899323503449296},height=0.0010406395861527404,height_95%_HPD={9.787213836348317E-4,0.00110580345487167},height_median=0.001040401992527946,height_range={8.88232252673482E-4,0.0011899323503449296},length=2.77868085352764E-4,length_95%_HPD={2.2109804324252033E-4,3.339580272854912E-4},length_median=2.7726779365612334E-4,length_range={1.666053047919135E-4,4.3833091066877044E-4},posterior=1.0]:2.778680853527593E-4)[&CAheight_95%_HPD={0.0012547601454063907,0.0013809159048451998},CAheight_mean=0.0013185076715054997,CAheight_median=0.0013183170646358308,CAheight_range={0.0011762656963642583,0.0014611225465177814},height=0.0013185076715054997,height_95%_HPD={0.0012547601454063907,0.0013809159048451998},height_median=0.0013183170646358308,height_range={0.0011762656963642583,0.0014611225465177814},length=2.493208528863962E-4,length_95%_HPD={1.9604070621280587E-4,3.0379195110064364E-4},length_median=2.485709257539009E-4,length_range={1.317193573848695E-4,3.754856442844078E-4},posterior=1.0]:2.493208528863934E-4,((8[&height=1.0001403883684454E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=9.709644180669887E-5,length_95%_HPD={7.695256457423581E-5,1.1721083011982008E-4},length_median=9.677797905467949E-5,length_range={5.3417211274533506E-5,1.42848872812071E-4}]:9.709644180669886E-5,10[&height=1.0001403883684454E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=9.709644180669887E-5,length_95%_HPD={7.695256457423581E-5,1.1721083011982008E-4},length_median=9.677797905467949E-5,length_range={5.3417211274533506E-5,1.42848872812071E-4}]:9.709644180669886E-5)[&CAheight_95%_HPD={7.695256457423624E-5,1.1721083011982051E-4},CAheight_mean=9.709644180669895E-5,CAheight_median=9.677797905467992E-5,CAheight_range={5.341721127453394E-5,1.42848872812071E-4},height=9.709644180669895E-5,height_95%_HPD={7.695256457423624E-5,1.1721083011982051E-4},height_median=9.677797905467992E-5,height_range={5.341721127453394E-5,1.42848872812071E-4},length=2.2209869543584018E-5,length_95%_HPD={9.66577851370734E-6,3.556546395018555E-5},length_median=2.155596114538803E-5,length_range={2.468206700626495E-6,6.442496861724066E-5},posterior=1.0]:2.2209869543585793E-5,9[&height=1.0055742464238467E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,8.673617379884035E-19},length=1.1930631135028464E-4,length_95%_HPD={9.687586130580593E-5,1.422610226833143E-4},length_median=1.189005770298149E-4,length_range={6.955964183318194E-5,1.8570634020891518E-4}]:1.1930631135028465E-4)[&CAheight_95%_HPD={9.687586130580593E-5,1.422610226833143E-4},CAheight_mean=1.1930631135028475E-4,CAheight_median=1.189005770298149E-4,CAheight_range={6.955964183318194E-5,1.8570634020891518E-4},height=1.1930631135028475E-4,height_95%_HPD={9.687586130580593E-5,1.422610226833143E-4},height_median=1.189005770298149E-4,height_range={6.955964183318194E-5,1.8570634020891518E-4},length=0.0014485222130416098,length_95%_HPD={0.0013814760401708417,0.0015164050114624711},length_median=0.0014482067361121025,length_range={0.0013072674077100504,0.0015943765034106092},posterior=1.0]:0.0014485222130416083)[&CAheight_95%_HPD={0.0015023836943327117,0.0016336906207280305},CAheight_mean=0.001567828524391893,CAheight_median=0.0015675598764217681,CAheight_range={0.001435994226026013,0.001714361359521961},height=0.001567828524391893,height_95%_HPD={0.0015023836943327117,0.0016336906207280305},height_median=0.0015675598764217681,height_range={0.001435994226026013,0.001714361359521961},length=5.979836674892226E-4,length_95%_HPD={5.287983388213215E-4,6.674703246528641E-4},length_median=5.974448117339168E-4,length_range={4.646762060599714E-4,7.778145915119817E-4},posterior=1.0]:5.979836674892569E-4)[&CAheight_95%_HPD={0.002086290238992261,0.0022454105099088168},CAheight_mean=0.00216581219188115,CAheight_median=0.0021655120729240367,CAheight_range={0.0019956965546618953,0.0023491796502677752},height=0.00216581219188115,height_95%_HPD={0.002086290238992261,0.0022454105099088168},height_median=0.0021655120729240367,height_range={0.0019956965546618953,0.0023491796502677752},length=4.832789042986753E-4,length_95%_HPD={4.095363913395817E-4,5.590310831741084E-4},length_median=4.826110321279895E-4,length_range={3.2007861619418564E-4,6.503547603039748E-4},posterior=1.0]:4.832789042986292E-4)[&CAheight_95%_HPD={0.0025599729637576837,0.002740254496980593},CAheight_mean=0.002649091096179779,CAheight_median=0.0026489752101130533,CAheight_range={0.002446324106120859,0.002851103059698624},height=0.002649091096179779,height_95%_HPD={0.0025599729637576837,0.002740254496980593},height_median=0.0026489752101130533,height_range={0.002446324106120859,0.002851103059698624},length=6.25729354135671E-5,length_95%_HPD={3.2358820137301514E-10,1.4012529874683722E-4},length_median=5.646345063016261E-5,length_range={3.2358820137301514E-10,3.2926028923530677E-4},posterior=1.0]:6.257293541357158E-5,11[&height=1.0053568921016306E-19,height_95%_HPD={0.0,4.3368086899420177E-19},height_median=0.0,height_range={0.0,4.3368086899420177E-19},length=0.0027116640315933507,length_95%_HPD={0.002614241656056135,0.002810115487978046},length_median=0.002710521677116163,length_range={0.00251369381312354,0.002945248902915589}]:0.0027116640315933507)[&CAheight_95%_HPD={0.002614241656056135,0.002810115487978046},CAheight_mean=0.0027116640315933507,CAheight_median=0.002710521677116163,CAheight_range={0.00251369381312354,0.002945248902915589},height=0.0027116640315933507,height_95%_HPD={0.002614241656056135,0.002810115487978046},height_median=0.002710521677116163,height_range={0.00251369381312354,0.002945248902915589},length=0.0,posterior=1.0]:0.0;
+End;
+
+```
+
+
+# Sequence Diversity 2
+
+## Variant Calling
+
+```{bash,eval=FALSE}
+Cerrophidion ## alias to go to the starting directory
+mkdir Variants
+cd Variants
+```
+
+```{bash,eval=FALSE}
+qsub Cgodm_VariantCalling1.pbs
+```
+
+
+```{bash,eval=FALSE}
+#PBS -N Variant_Cgodm
+#PBS -l select=1:ncpus=20:interconnect=any:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load anaconda3/5.1.0-gcc/8.3.1
+source activate VariantsCalling_env
+
+cd $PBS_O_WORKDIR
+
+mkdir Cgodm
+cp Cgodm_consensus_v1.fasta Cgodm/ref.fa
+cd Cgodm
+mkdir RESULTS
+
+bwa index ref.fa
+
+picard CreateSequenceDictionary -REFERENCE ref.fa -OUTPUT ref.dict
+samtools faidx ref.fa
+#sudo pip install pyfaidx
+faidx --transform bed ref.fa > ref.bed
+
+
+parallel -a ../ID_Cgodm -j20 "source .bash_profile
+	module load anaconda3/5.1.0-gcc/8.3.1
+	source activate VariantsCalling_env
+	cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm
+	mkdir {}
+	cd {}
+	bwa mem -M -t 2 -R '@RG\tID:Cgodm\tSM:{}' ../ref.fa /zfs/venom/Ramses/Cerrophidion/{}/03merged/{}_pear.assembled.fastq > {}_aln.sam
+	cat {}_aln.sam | grep -E 'NM:i:[0-2][[:space:]]|^@' > {}_filtered.sam
+	picard SortSam -INPUT {}_filtered.sam -OUTPUT {}.bam -SORT_ORDER coordinate
+	picard BuildBamIndex -INPUT {}.bam
+	rm {}*.sam
+	java -jar /zfs/venom/Ramses/bin/GenomeAnalysisTK-3.8-1-0-gf15c1c3ef/GenomeAnalysisTK.jar -T RealignerTargetCreator -R ../ref.fa -I {}.bam -o realigner.intervals
+	java -jar /zfs/venom/Ramses/bin/GenomeAnalysisTK-3.8-1-0-gf15c1c3ef/GenomeAnalysisTK.jar -T IndelRealigner -R ../ref.fa -I {}.bam -targetIntervals realigner.intervals  -o {}_realigned.bam
+	java -jar /zfs/venom/Ramses/bin/GenomeAnalysisTK-3.8-1-0-gf15c1c3ef/GenomeAnalysisTK.jar -T PrintReads -R ../ref.fa -I {}_realigned.bam  -rf OverclippedRead --filter_is_too_short_value 120 --do_not_require_softclips_both_ends -rf MappingQuality -mmq 40 -rf ReadLength -minRead 120 -maxRead 500 -o {}_realigned_filter.bam
+	gatk HaplotypeCaller -R ../ref.fa -I {}_realigned_filter.bam -O {}.g.vcf -ERC GVCF
+	gatk GenotypeGVCFs -R ../ref.fa -V {}.g.vcf -O output.vcf
+	gatk SelectVariants -R ../ref.fa -V output.vcf -select-type SNP -O raw_snps.vcf
+	gatk VariantFiltration -R ../ref.fa -V raw_snps.vcf --filter-expression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' --filter-name 'FILTER' -O filtered_snps.vcf
+	gatk SelectVariants -R ../ref.fa -V output.vcf -select-type INDEL -O raw_indels.vcf
+	gatk VariantFiltration -R ../ref.fa -V raw_indels.vcf --filter-expression 'QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0' --filter-name 'FILTER' -O filtered_indels.vcf
+	grep -E '^#|PASS' filtered_snps.vcf > {}_SNPs.vcf
+	grep -E '^#|PASS' filtered_indels.vcf > {}_INDELs.vcf
+	bedtools coverage -a ../ref.bed -b {}.bam -d > {}_coverage.txt
+	bedtools genomecov -bga -ibam {}.bam -g ../ref.bed > tmp.bed
+	grep -w 0$ tmp.bed > 0cov.bed
+	rm tmp.bed
+	cp {}_SNPs.vcf ../RESULTS/
+	cp {}_INDELs.vcf ../RESULTS/
+	cp {}_coverage.txt ../RESULTS/
+	cp 0cov.bed ../RESULTS/{}_0cov.bed
+	whatshap phase --reference ../ref.fa -o {}_phased.vcf {}_SNPs.vcf {}.bam
+	cp {}_phased.vcf ../RESULTS/
+	bgzip {}_phased.vcf
+	tabix {}_phased.vcf.gz
+	bcftools consensus -H 1 -f ../ref.fa {}_phased.vcf.gz > haplotype1.fasta
+	bcftools consensus -H 2 -f ../ref.fa {}_phased.vcf.gz > haplotype2.fasta
+	bedtools maskfasta -fi haplotype1.fasta -bed 0cov.bed -fo {}_allele1.fasta -mc -
+	bedtools maskfasta -fi haplotype2.fasta -bed 0cov.bed -fo {}_allele2.fasta -mc -
+	rm haplotype1.fasta haplotype2.fasta
+	cp {}_allele*.fasta ../RESULTS/
+	cp {}_phased.vcf.gz.tbi ../RESULTS/
+	cd .."
+
+cd RESULTS/
+mkdir SNPs INDELs PhasedAlleles Coverage PhasedSNPs
+mv *_SNPs.vcf SNPs/
+mv *_INDELs.vcf INDELs/
+mv *_phased.vcf PhasedSNPs/
+mv *_allele*.fasta PhasedAlleles/
+mv *_coverage.txt Coverage/
+mv *_0cov.bed Coverage/
+```
+
+## Selection Analysis
+
+### filter coverage
+```{bash,eval=FALSE}
+mv Cgodm Cgodm_goodone #changed the name of the folder
+cd Cgodm_goodone
+```
+
+```{bash,eval=FALSE}
+qsub Cgodm_filter1.pbs
+```
+
+filter_cov.py is a python script that filter the contigs by its coverage, the ouput is a csv file with the name of the gene and a colum that set if a gene is present
+of absent based on the percentage of locus with a threshold coverage, in this case less than 5 \% with 0 coverage.
+
+```{bash,eval=FALSE}
+#PBS -N filter_Cgodm
+#PBS -l select=1:ncpus=20:interconnect=any:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+source .bash_profile
+
+module load gnuparallel/20210222
+
+cd $PBS_O_WORKDIR
+
+parallel -a ../ID_Cgodm -j6 "echo {}
+	source /home/ramsesr/.bashrc
+	module load anaconda3/5.1.0-gcc/8.3.1
+	source activate VariantsCalling_env
+	cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm
+	cd {}
+	filter_cov.py -i {}_coverage.txt -o {}"
+```
+
+use the .csv to get a list of the present genes
+
+
+```{bash,eval=FALSE}
+cd /RESULTS/Coverage
+grep -h ",present" Cgodm*.csv | sort | uniq -c >present_genes.csv
+#grep -E "[3456] " present_genes.csv | cut -d " " -f 8 > tmp
+grep -E "[3456] " present_genes.csv> tmp
+
+cp ../../../../Cgodm_transcriptome/02rsem_clean/remove.list .
+
+cat tmp > tmp_final
+
+for i in `cat remove.list`
+do grep -c "TOXIN" tmp_final
+grep "${i}" tmp_final
+grep -v "${i}" tmp_final > tmp1
+cp tmp1 tmp_final
+grep -c "TOXIN" tmp_final
+done
+rm tmp1
+#perl -p -i-e "s/,present//g" tmp_final
+
+```
+
+### Run Analysis(Tajimas' D, $F_{ST}$, $\pi$ and snpEff)
+
+#### snpEff reference
+
+Previous to run snpEff do this
+```{bash,eval=FALSE}
+
+###move consense transcriptome to Geneious, chose option of making a list
+###select one then cmnd + a to select all, then annotate all, use the name CDS as name 
+### save as genes.gff
+####remove the comment lines with this code 
+perl -pi -e 's/^#.*\n//g' genes.gff
+#### remove the "created by" with this code 
+perl -pi -e 's/created\ by\=ramsesrosales//g' genes.gff
+##Add some information to the end of each line 
+perl -pi -e 's/^(.*?)(\t.*)/$1$2gene_id "$1"; transcript_id "1"/gm' genes.gff
+#### send the file to palmetto
+scp genes.gff ramsesr@xfer01-ext.palmetto.clemson.edu:/zfs/venom/Ramses/bin/snpEff/data/Cgodm
+
+###also copy ref.fa into the snpEff/data/Cgodm folder and name it sequences.fa
+
+#####go to the snpEff package
+cd /home/ramsesr/.conda/pkgs/snpeff-5.0-hdfd78af_1/share/snpeff-5.0-1
+
+#change the path of the databases for the path you are going to use to save your files in this case (/zfs/veom/Ramses/bin/snpEff/data/Cgodm)
+nano snpEff.config 
+#change data.dir = ./data for 
+data.dir = /zfs/veom/Ramses/bin/snpEff/data/Cgodm
+echo "Cgodm.genome : Cgodm" >> snpEff.config
+
+##now we have to build the data base
+snpEff build -gff3 -v Cgodm
+
+#####now this should work
+snpEff Cgodm Combined.vcf > Annotated.vcf
+```
+
+
+#### Run Analysis
+
+```{bash,eval=FALSE}
+qsub Cgodm_vcf2.pbs
+```
+
+
+```{bash,eval=FALSE}
+#PBS -N Cgodm_vcf_tools2.0
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+module load anaconda3/2020.07-gcc/8.3.1
+source activate VariantsCalling_env
+
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone
+
+##first a test with Cgodm
+#in Variant/Cgodm
+mkdir test
+cp -r RESULTS/PhasedSNPs test/
+
+cd test/PhasedSNPs
+####tabix need a compresed file to work, first I need to run bgzip
+for i in *_phased.vcf
+do echo $i
+bgzip $i
+done
+##now tabix should work
+for i in *
+do echo $i
+tabix -fp vcf $i
+done
+
+# Merge SNPs into a single file
+vcf-merge -R 0/0 *_phased.vcf.gz  > Combined.vcf
+bgzip -c Combined.vcf > Combined.vcf.gz
+tabix -fp vcf Combined.vcf.gz
+mkdir Analysis_filtered
+mv Combined.* Analysis_filtered/
+cd Analysis_filtered
+
+## Tajima's D and Nucleotide Diversity per Gene
+mkdir Genes NDiversity TajimasD_perGene RESULTS
+cp /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/RESULTS/Coverage/tmp_final ./Genes.txt
+perl -p -i -e "s/^.*[\d]\ //g" Genes.txt
+perl -p -i -e 's/(.*),present[\s]*/$1\n/g' Genes.txt
+
+###code to look to do the Genes.txt file
+##contig=<ID=
+##trinityContig9992||sp|Q8IXM2.1|,assembly=ref.fa,length=531.vcf
+
+####run parallel
+parallel -a Genes.txt -j 20 --verbose "echo {}
+tabix -h Combined.vcf.gz {} > Genes/"{}".vcf
+vcftools --vcf Genes/"{}".vcf --TajimaD 8000 --out TajimasD_perGene/"{}"
+vcftools --vcf Genes/"{}".vcf --site-pi --out NDiversity/"{}"
+tail -n+2 TajimasD_perGene/"{}".Tajima.D >> RESULTS/TajimaD_perGene.txt
+tail -n+2 NDiversity/"{}".sites.pi >> RESULTS/Pi_perSite.txt"
+
+# TajimaD per site
+mkdir TajimaD_perSite
+vcftools --vcf Combined.vcf --TajimaD 1 --out TajimaD_perSite/TajimaD_perSite
+cp TajimaD_perSite/TajimaD_perSite.Tajima.D RESULTS/TajimaD_perSite.txt
+
+## Fst Between Populations
+### get Toxin and Nontoxins.txt
+grep 'TOXIN' Genes.txt > Toxins.txt
+cp Genes.txt  Nontoxins.txt
+perl -p -i -e 's/TOXIN.*\n//g' Nontoxins.txt
+
+# Fst per site between populations (mean per gene in R)
+tabix -h Combined.vcf.gz `cat Toxins.txt` > CombinedToxins.vcf
+tabix -h Combined.vcf.gz `cat Nontoxins.txt` > CombinedNontoxins.vcf
+
+#### make the list of individuals for each population
+
+printf 'Cgodm-CLP2359\nCgodm-CLP2360\nCgodm-CLP2362\nCgodm-CLP2388\n' > Cgodm-South
+printf "Cgodm-CLP2377\nCgodm-CLP2378\n" > Cgodm-North
+
+####calculate fst
+mkdir Fst
+vcftools --vcf CombinedToxins.vcf --weir-fst-pop Cgodm-North --weir-fst-pop Cgodm-South --out Fst/Toxin_SPvNP &> Fst/Toxin_SPvNP.log
+vcftools --vcf CombinedNontoxins.vcf --weir-fst-pop Cgodm-North --weir-fst-pop Cgodm-South --out Fst/Nontoxin_SPvNP &> Fst/Nontoxin_SPvNP.log
+
+### add a tab and the name of the comparation, in this case is just one
+perl -p -i -e "s/\n/\t SPvNP\n/g" Fst/*_SPvNP.weir.fst
+#perl -p -i -e "s/SPvNP\t SPvNP\n/SPvNP\n/g" Fst/*_SPvNP.weir.fst
+tail -n+2 Fst/*_SPvNP.weir.fst >> Fst.txt
+
+###this was in a loop in the original code
+A="$(grep "mean Fst" Fst/Nontoxin_SPvNP.log)"
+B="$(grep "mean Fst" Fst/Toxin_SPvNP.log)"
+C="$(grep "weighted Fst" Fst/Nontoxin_SPvNP.log)"
+D="$(grep "weighted Fst" Fst/Toxin_SPvNP.log)"
+printf "SPvNP \t $A \t $B \t $C \t $D \n" >> RESULTS/Fst_PopMeans.txt
+
+
+grep -v "==" Fst.txt | grep -v '^$' > Fst_perSite.txt
+
+#####now this should work
+snpEff Cgodm Combined.vcf > Annotated.vcf
+
+####now following the html of Ccera
+mkdir PopulationAnalyses
+cd PopulationAnalyses
+###make a directory for each population
+mkdir Cgodm-North
+mkdir Cgodm-South
+
+###repeat the previous steps to get all the data for each population
+for i in `cat ../Cgodm-North`
+do echo $i
+cp ../../${i}* Cgodm-North
+done
+
+for i in `cat ../Cgodm-South`
+do echo $i
+cp ../../${i}* Cgodm-South
+done
+
+echo Cgodm-North >>pop_list
+echo Cgodm-South >>pop_list
+
+for i in `cat pop_list`
+do echo $i
+cd $i
+vcf-merge -R 0/0 *_phased.vcf.gz > Combined.vcf
+bgzip -c Combined.vcf > Combined.vcf.gz
+tabix -fp vcf Combined.vcf.gz
+mkdir Analysis
+cp ../../Genes.txt Analysis/
+cd Analysis/
+mkdir Genes NDiversity TajimasD
+    parallel -a Genes.txt -j 20 --verbose "echo {}
+    tabix -h ../Combined.vcf.gz {} > Genes/"{}".vcf
+    vcftools --vcf Genes/"{}".vcf --TajimaD 8000 --out TajimasD/"{}"
+    vcftools --vcf Genes/"{}".vcf --site-pi --out NDiversity/"{}"
+    tail -n+2 TajimasD/"{}".Tajima.D >> CombinedTajimaD.txt
+    tail -n+2 NDiversity/"{}".sites.pi >> CombinedPi.txt"
+cd ../../
+done
+
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/test/PhasedSNPs/Analysis_filtered
+
+##### Tajima's D Synonymous vs. Nonsynonymous Mutations
+grep "synonymous_variant" Annotated.vcf > Synonymous.vcf
+grep -v "synonymous_variant" Annotated.vcf > Nonsynonymous.vcf
+# Manually edit the Synonymous.vcf to add header back into document
+
+# Headers are in line  7276
+grep -n '#CHROM' Nonsynonymous.vcf > tmp
+perl -p -i -e 's/([0-9]*):.*/$1/g' tmp
+grep -m `cat tmp` -e '.*' Nonsynonymous.vcf > tmp.vcf
+cat Synonymous.vcf >> tmp.vcf
+rm Synonymous.vcf
+mv tmp.vcf Synonymous.vcf
+
+
+bgzip -c Synonymous.vcf > Synonymous.vcf.gz
+tabix -fp vcf Synonymous.vcf.gz
+bgzip -c Nonsynonymous.vcf > Nonsynonymous.vcf.gz
+tabix -fp vcf Nonsynonymous.vcf.gz
+mkdir TajimasD_Synonymous
+mkdir TajimasD_Nonsynonymous
+mkdir Genes_Synonymous
+mkdir Genes_Nonsynonymous
+
+parallel -a Genes.txt -j 8 --verbose " echo {}
+    tabix -h Synonymous.vcf.gz {} > Genes_Synonymous/"{}".vcf
+    vcftools --vcf Genes_Synonymous/"{}".vcf --TajimaD 8000 --out TajimasD_Synonymous/"{}"
+    tail -n+2 TajimasD_Synonymous/"{}".Tajima.D >> RESULTS/TajimasD_Synonymous.txt
+    tabix -h Nonsynonymous.vcf.gz {} > Genes_Nonsynonymous/"{}".vcf
+    vcftools --vcf Genes_Nonsynonymous/"{}".vcf --TajimaD 8000 --out TajimasD_Nonsynonymous/"{}"
+    tail -n+2 TajimasD_Nonsynonymous/"{}".Tajima.D >> RESULTS/TajimasD_Nonsynonymous.txt"
+```
+
+```{bash,eval=FALSE}
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/test/PhasedSNPs/Analysis_filtered
+./lenght.sh
+```
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+##this code gets the values of lenght in the same order then Genes.txt
+
+grep  '##contig=<ID=' Combined.vcf > tmp1
+for i in `cat Genes.txt`
+do echo $i
+grep -e ${i} tmp1 >> length.txt
+done
+
+perl -p -i -e 's/##contig.*length=([\d]*)>/$1/g' length.txt
+```
+
+### Run Analysis(HyPhy BUSTED)
+
+
+#### Clip tree
+
+```{bash,eval=FALSE}
+# renames the tree scaled in Best to test.tree
+# -i input, -l list with the tip labels to keep, -m mode(keep, or clip), -o output
+Clip_trees.R -i test.tree -l test.list -m keep -o test_keep
+```
+
+```{bash,eval=FALSE}
+((((Cgodm-CLP2359:0.0008778420755,Cgodm-CLP2388:0.0008778420755):0.000161623224,Cgodm-CLP2362:0.001039465299):0.0002676702782,Cgodm-CLP2360:0.001307135578):0.001341955519,(Cgodm-CLP2377:0.001463992502,Cgodm-CLP2378:0.001463992502):0.001185098594);'
+```
+
+#### Run Analysis
+
+```{bash,eval=FALSE}
+qsub Cgodm_HyPhy_busted_3.pbs
+```
+
+
+The scripts Linearize.py and RemoveStop.py are available in https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts
+
+
+```{bash,eval=FALSE}
+#PBS -N Cgodm_HyPhy_busted3.0
+#PBS -l select=1:ncpus=20:interconnect=fdr:mem=100gb,walltime=72:00:00
+#PBS -M ramsesr@g.clemson.edu
+#PBS -m abe
+#PBS -j oe
+
+##### this is already done and do not need to be redo
+
+#follow to extract the fasta alignment from the vcf files
+#cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone
+#parallel -a ../../ID_Cgodm -j 6 --verbose " mkdir AlternateAllele
+#cd AlternateAllele
+#cp ../PhasedSNPs/{}_phased.vcf .
+#bgzip {}_phased.vcf
+#tabix {}_phased.vcf.gz
+#bcftools consensus -H A -f ../../ref.fa {}_phased.vcf.gz > {}_haplotypeA.fasta"
+
+#rm AlternateAllele/*.vcf.gz.tbi
+#rm AlternateAllele/*.vcf.gz
+
+#######
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/
+cd test
+mkdir HyPhy
+cd HyPhy
+mkdir genes
+
+cp /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/RESULTS/Coverage/tmp ./Genes.txt
+perl -p -i -e "s/^.*[\d]\ //g" Genes.txt
+perl -p -i -e 's/(.*),present[\s]*/$1\n/g' Genes.txt
+
+
+
+cp /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/RESULTS/PhasedAlleles/*_allele1.fasta .
+
+#download Linearize to my path, it is in the bioinformatics module in Rhett's github
+#add to the path
+
+#use Linearize.py to make a file with only one line for each sequence
+module load anaconda3/2020.07-gcc/8.3.1
+source activate bio
+
+for i in *.fasta
+do echo $i
+Linearize.py -f $i
+done
+
+
+#add the name of the sample at the start of each gene
+for i in `cat /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/ID_Cgodm`
+do echo $i
+perl -p -i -e "s/>/>${i}_/g" ${i}_allele1.fasta
+done
+
+
+
+## use the Genes list and the list of the samples to extract the sequence of each sample of a specific gene and save it in a fasta file
+for i in `cat Genes.txt`
+do echo $i
+for j in `cat ../../../ID_Cgodm`
+do echo $j
+## in grep -h to make sure it does not include the name of the file
+# -A1 means that it includes the line that match the pattern and a line after it
+# -e means that the pattern is a regexp, it makes sure grep recognise ${i} as a varoable
+grep -h -A1 -e ${i} ${j}_allele1.fasta >> genes/Cgodm_${i}.fasta
+done
+done
+
+##this needs bio environment
+#remove the stop codons
+
+
+
+ls genes >> tmp.list
+for i in   `cat tmp.list`
+do echo $i
+cd genes
+RemoveStop.py -f $i
+cd ..
+done
+
+#remove the anotation of each genes and only let the name of the individuals
+for i in `cat ../../../ID_Cgodm`
+do echo $i
+perl -p -i -e "s/>${i}_.*/>${i}/g" genes/*noStop.fasta
+done
+
+#Trim the tree to keep only Cgodm, I did it by hand as it was a small tree, for small tree probably would need to use python or R
+#also I could run independent trees
+
+#cat Rhetts_Cerrophidion
+
+#((((Cgodm-CLP2378:0.118627,Cgodm-CLP2377:0.1503):0.183575,(Cgodm-CLP2359:0.181464,(Cgodm-CLP2360:0.16382,(Cgodm-CLP2388:0.126041,Cgodm-CLP2362:0.123223):0.012624):0.053099):0.307079):0.201802,((Ctzot-CLP2364:0.550531,(Ctzot-CLP2366:0.036039,Ctzot-CLP2383:0.084937):0.178103):0.227198,(Cpetl-CLP2324:0.401772,(Cpetl-CLP2326:0.368334,Cpetl-CLP2327:0.325051):0.014938):1.882499):0.298994):0.178244,Csasa-LIAP244:2.404638);
+
+#vi Rhetts_Cgodm.tree
+#cat Rhetts_Cgodm.tree
+echo '((((Cgodm-CLP2359:0.0008778420755,Cgodm-CLP2388:0.0008778420755):0.000161623224,Cgodm-CLP2362:0.001039465299):0.0002676702782,Cgodm-CLP2360:0.001307135578):0.001341955519,(Cgodm-CLP2377:0.001463992502,Cgodm-CLP2378:0.001463992502):0.001185098594);' >> busted_busco_scaled.tree
+
+
+### seems that as we extract this from the snps it is already aligned, so I dont have to use mafft
+
+#Runt HyPhy for all the samples
+
+conda deactivate
+source activate HyPhy_env
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/test/HyPhy
+mkdir Busted_Busco_Scaled_tree
+
+mv busted_busco_scaled.tree Busted_Busco_Scaled_tree
+
+ls genes/*_noStop.fasta > tmp1.list
+perl -p -i -e "s/genes\///g" tmp1.list
+parallel -a tmp1.list -j 20 -- verbose "
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm/test/HyPhy
+cd Busted_Busco_Scaled_tree
+cp ../genes/"{}" .
+hyphy busted --alignment "{}" --tree busted_busco_scaled.tree
+rm "{}"
+echo busten model finalized"
+
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm/test/HyPhy/Busted_Busco_Scaled_tree
+
+busted_maketable.sh
+```
+
+for some reason busted_maketable.sh did not run in the pbs job, run it in a interactive job
+
+```{bash,eval=FALSE}
+cd test/HyPhy/Busted_Busco_Scaled_tree_paper
+busted_maketable.sh #is in my path
+```
+
+
+code of busted_maketable.sh
+
+this script make a table from the resulting .json files
+
+```{bash,eval=FALSE}
+#!/bin/bash
+
+echo -e gen,LRT,p-value,CW1,CW2,CW3,UCW1,UCW2,UCW3 > Busted_Results
+for i in *.BUSTED.json
+do echo $i
+grep -A29 -e 'Constrained model' ${i} > tmp.file
+grep -A29 -e 'Unconstrained model' ${i} > tmp1.file
+grep -n -e ".*" tmp.file > tmp1.1.file
+grep -n -e ".*" tmp1.file > tmp1.2.file
+echo 0`grep -e '^21' tmp1.1.file`,0`grep -e '^25' tmp1.1.file`,0`grep -e '^29' tmp1.1.file`,0`grep -e '^21' tmp1.2.file`,0`grep -e '^25' tmp1.2.file`,0`grep -e '^29' tmp1.2.file` > tmp2.file
+perl -p -i -e "s/21\: //g" tmp2.file
+perl -p -i -e "s/25\: //g" tmp2.file
+perl -p -i -e "s/29\: //g" tmp2.file
+perl -p -i -e "s/\"omega\"\://g" tmp2.file
+perl -p -i -e "s/,\n/\n/g" tmp2.file
+perl -p -i -e "s/,00\./,0\./g" tmp2.file
+perl -p -i -e "s/^00\./0\./g" tmp2.file
+perl -p -i -e 's/,0([0-9]+)\./,$1\./g' tmp2.file
+perl -p -i -e 's/0([0-9]+),,/$1,,/g' tmp2.file
+echo $i,`grep -e '\"LRT\"\:' $i`,`grep -e '\"p-value\"\:' $i`, `cat tmp2.file` >> Busted_Results
+done
+perl -p -i -e "s/^Cgodm_//g" Busted_Results
+perl -p -i -e "s/_noStop\.fasta\.BUSTED\.json//g" Busted_Results
+perl -p -i -e "s/\"LRT\"\://g" Busted_Results
+perl -p -i -e "s/\"p-value\"\://g" Busted_Results
+perl -p -i -e "s/,,/,/g" Busted_Results
+```
+ 
+## Prepare Final Data
+
+In the same file put the next files and a list with the names of the files (TDlist)
+The snpEff where put in Excel to be saved as csv
+In Excel eliminate the fist line and the # at the start of the headers in snpEff_genes.csv
+use a perl pie to eliminate the first CDS_
+
+```{bash,eval=FALSE}
+perl -pi -e "s/^CDS_//g" snpEff_genes.csv
+```
+for the snpEff_Summary.csv copying from the html added some weird characters at the end of each cell
+I use find and replace in VSC to eliminate that character.
+The file Busted_Results is a csv, I just add the extention
+
+```{bash,eval=FALSE}
+TajimaD_perGene.txt
+TajimasD_Nonsynonymous.txt
+TajimasD_Synonymous.txt
+snpEff_Summary.csv
+snpEff_genes.csv
+Pi_perSite.txt
+Fst_perSite.txt
+Busted_Results.csv
+```
+
+We also need to copy the Genes.txt and the length.txt file for the first script that concatenate the files in TDlist in one data base
+
+The second script adds the Rsem results and the differential expression result, for these we need to have both files in the directory
+
+>* Cgodm_TajimasD.csv
+>* Cgodm_consense_df.csv
+
+```{bash,eval=FALSE}
+r_4
+make_FD_1.R -g Genes.txt -e length.txt -l TDlist -o Cgodm -s linux
+
+make_FD_2_final.R -t Cgodm_TajimasD.csv -r Cgodm_consense_df.csv -d Cgodm_DifExp_tab.csv -o Cgodm
+
+
+```
+
+# Final
+
+Here we end the script in linux, we add a second rmarkdown that include the Ranalysis using the Cgodm_finaldata.csv file.
