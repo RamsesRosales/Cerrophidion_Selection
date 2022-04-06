@@ -7,7 +7,7 @@ Ahumada-Carrillo, Ricardo Ramirez-Chaparro, Miguel Angel De la
 Torre-Loranca, Jason L. Strickland, Andrew J. Mason, Matthew L. Holding,
 Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Tristan D.
 Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
-2022 April 01
+2022 April 06
 
 -   [Assembly](#assembly)
     -   [Pre Assembly](#pre-assembly)
@@ -1073,6 +1073,23 @@ cd Cgodm_transcriptome/02rsem_clean2
 cd Dif_Exp
 Cerrophidion_HeatMap_order_difExp.R -i ../Cgodm_consense_df.csv -m ../../Cerrophidion_specimens1.csv -d Cgodm_DifExp_tab.csv -s Cgodm -p T  -t Cgodm_DifExp_TF_tab.csv -c T -w 1500 -e 1800
 cd ../../..
+```
+
+stacked plots for the figures, download the <species>\_consense\_df.csv
+files to local computer in the same folder
+
+``` bash
+stacked_toxin_plot.R -f F -i Cgodm_consense_df.csv -o Cgodm -n 6 -t tf_list
+# tf_list is a list with the names of the genes that were identify as crotoxin subunit homologs and the new name of the toxin family 
+stacked_toxin_plot.R -f F -i Ctzot>_consense_df.csv -o Ctzot -n 4
+stacked_toxin_plot.R -f F -i Cpetl_consense_df.csv -o Cpetl -n 3
+```
+
+content of tf\_list
+
+``` bash
+TOXIN_extenderContig120||Cgodm-CLP2360trinity_PLA2-3a_trinityContig14327_PLA2,PLA2_neuro
+TOXIN_extenderContig449||Cgodm-CLP2360trinity_PLA2-2a_trinityContig14324_PLA2,PLA2_neuro
 ```
 
 # PLA2s Phylogeny
