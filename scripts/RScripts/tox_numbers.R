@@ -3,20 +3,20 @@
 library(argparser)
 
 
-args<-arg_parser(description = "Script to make a stack plot of toxins families, alternatively you can import the function",
+args<-arg_parser(description = "Script to get numbers from the population of snakes",
                  name = "",
                  hide.opts = F)
 args<-add_argument(args,arg = "--input",
                    short = "-i",
-                   help = "if run from shell, path to the input file, the colum names must be class(Toxin, Nontoxin,), toxin_family",
+                   help = " path to the input file, the colum names must be class(Toxin, Nontoxin,), toxin_family",
                    default = "Cgodm_consense_df.csv")
 args<-add_argument(args,arg = "--number_of_individuals",
                    short = "-n",
-                   help = "if run from shell, path to the input file, the colum names must be class(Toxin, Nontoxin,), toxin_family",
+                   help = " path to the input file, the colum names must be class(Toxin, Nontoxin,), toxin_family",
                    default = 6)
 args<-add_argument(args,arg = "--north",
                    short = "-r",
-                   help = "if run from shell, path to the input file, the colum names must be class(Toxin, Nontoxin,), toxin_family",
+                   help = " number of the colums that are parth of the north population, considering just the colums with individuals",
                    nargs = "?",
                    default = c(4,5))
 argmts<-parse_args(args)
