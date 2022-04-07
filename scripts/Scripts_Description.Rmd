@@ -1,0 +1,85 @@
+---
+title: "Scripts_Description"
+author: "Ramses Alejandro Rosales Garcia"
+date: "4/7/2022"
+output:
+  html_notebook:
+    theme: journal
+    toc: yes
+    toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+  github_document:
+    toc: yes
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+These directory contain several small scripts used in the paper.
+
+# R Scripts
+
+Script on R language
+
+## RSEM Formating and Ploting Pipeline
+
+The scripts are designed to be used in the following order.
+
+* data_frame_consense.R
+* consense.R
+* FancyPlots3.R
+* FancyPlotsAverage.R
+* FancyPlotAverageNS.R
+* TransConPlot_Species.R
+* stacked_toxin_plot.R
+* PlottingFunctions1.R (sourced by FancyPlots scripts)
+
+## Differential Expression and Heat Map Pipeline
+
+The script are design to be run in the following order
+
+* consense_expected_count.R
+* ToxNames.R
+* Dif_Exp_Cerrophidion.R
+* Dif_Exp_Tab.R
+* Cerrophidion_HeatMap_AverageExpressionOrder.R
+* Cerrophidion_HeatMap_order_difExp.R (specific for Cgodmani data)
+
+
+## Phylogenetics Formating
+
+Scripts used in different steps of the phylogenetic analysis mostly to format files.
+
+* Rename_Fasta_Headers.R
+* Clip_trees.R
+* Change_tree_names.R
+
+
+## Selection Table Formating
+
+Scripts used in other steps of the project, or not used.
+
+* make_FD_1.R
+* make_FD_2_final.R
+
+## Other Scripts
+
+* tox_numbers.R
+* mixing_df_tx.R
+
+# Python Scripts
+
+Script on Python language
+
+## Phylogenetic formating 
+
+Scripts used at different steps of the phylogenetic analysis for busco genes and for PLA2s
+
+
+
+
+
