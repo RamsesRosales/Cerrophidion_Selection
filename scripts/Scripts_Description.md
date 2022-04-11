@@ -1,7 +1,7 @@
 Scripts\_Description
 ================
 Ramses Alejandro Rosales Garcia
-4/7/2022
+2022 April 11
 
 -   [R Scripts](#r-scripts)
     -   [RSEM Formating and Ploting
@@ -13,6 +13,7 @@ Ramses Alejandro Rosales Garcia
     -   [Other Scripts](#other-scripts)
 -   [Python Scripts](#python-scripts)
     -   [Phylogenetic formating](#phylogenetic-formating)
+-   [Shell Scripts](#shell-scripts)
 
 These directory contain several small scripts used in the paper.
 
@@ -41,6 +42,7 @@ The script are design to be run in the following order
 -   ToxNames.R
 -   Dif\_Exp\_Cerrophidion.R
 -   Dif\_Exp\_Tab.R
+-   Colors\_HM\_Cerrophidion.R (list of colors used by heatmap script)
 -   Cerrophidion\_HeatMap\_AverageExpressionOrder.R
 -   Cerrophidion\_HeatMap\_order\_difExp.R (specific for Cgodmani data)
 
@@ -57,7 +59,8 @@ format files.
 
 Scripts used in other steps of the project, or not used.
 
-*make\_FD\_1.R *make\_FD\_2\_final.R
+-   make\_FD\_1.R
+-   make\_FD\_2\_final.R
 
 ## Other Scripts
 
@@ -72,3 +75,19 @@ Script on Python language
 
 Scripts used at different steps of the phylogenetic analysis for busco
 genes and for PLA2s
+
+-   BuscoCleaner.py (modified from Rhett Rautsau)
+-   Translate\_RARG.py
+-   filter\_cov.py (Modified from Andrew Script)
+-   nx2nw.py
+-   IsoelectricPoint\_df.py
+-   extract\_CDS.py
+-   import\_gb.py
+
+# Shell Scripts
+
+Some of the shell script used, other shell scripts might be seen in the
+first section directory markdown.
+
+-   add\_shebang.sh
+-   busted\_maketable

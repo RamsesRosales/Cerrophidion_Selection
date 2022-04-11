@@ -1,7 +1,15 @@
 #!/bin/env python
 import argparse 
 
-parser = argparse.ArgumentParser(description="Script to extract cds from a gen bank file")
+parser = argparse.ArgumentParser(description="""
+Script to extract cds from a gen bank file or a fasta file
+
+if you use a genbank file it will take the start and end of the CDS from the file
+it only works if there is just one range
+
+if you use a fasta file you can use the flags cs and ce to delimit the CDS
+
+""")
 
 ###############################################
 
@@ -40,7 +48,7 @@ if not args.input:
     print("""
 
     ##########################################################################################################
-         missing accession number, use flag -a to give a accession number
+         missing input file, use flag -i to give the path to the input file
     ##########################################################################################################
 
     """)

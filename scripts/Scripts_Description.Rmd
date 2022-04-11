@@ -1,18 +1,18 @@
 ---
 title: "Scripts_Description"
 author: "Ramses Alejandro Rosales Garcia"
-date: "4/7/2022"
+date: "`r format(Sys.time(), '%Y %B %d')`"
 output:
+  github_document:
+    toc: yes
+    toc_depth: 4
+  html_document:
+    toc: yes
+    df_print: paged
   html_notebook:
     theme: journal
     toc: yes
     toc_float: yes
-  html_document:
-    toc: yes
-    df_print: paged
-  github_document:
-    toc: yes
-    toc_depth: 4
 ---
 
 ```{r setup, include=FALSE}
@@ -46,9 +46,9 @@ The script are design to be run in the following order
 * ToxNames.R
 * Dif_Exp_Cerrophidion.R
 * Dif_Exp_Tab.R
+* Colors_HM_Cerrophidion.R (list of colors used by heatmap script)
 * Cerrophidion_HeatMap_AverageExpressionOrder.R
 * Cerrophidion_HeatMap_order_difExp.R (specific for Cgodmani data)
-
 
 ## Phylogenetics Formating
 
@@ -79,7 +79,20 @@ Script on Python language
 
 Scripts used at different steps of the phylogenetic analysis for busco genes and for PLA2s
 
+* BuscoCleaner.py (modified from Rhett Rautsau)
+* Translate_RARG.py
+* filter_cov.py (Modified from Andrew Script)
+* nx2nw.py
+* IsoelectricPoint_df.py
+* extract_CDS.py
+* import_gb.py
 
+# Shell Scripts
+
+Some of the shell script used, other shell scripts might be seen in the first section directory markdown.
+
+* add_shebang.sh
+* busted_maketable
 
 
 

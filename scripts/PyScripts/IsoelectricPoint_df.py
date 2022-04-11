@@ -12,8 +12,12 @@ from Bio.SeqIO import FastaIO
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 #Returns a csv with the isoelectric poin of each sequence in the fasta file
-parser = argparse.ArgumentParser(description = """Takes a aminoacid fasta an returns a table\n
-with the toxins and the  theoretical isoelectric points""")
+parser = argparse.ArgumentParser(description = """
+
+Takes a aminoacid fasta an returns a table\n
+with the toxins and the  theoretical isoelectric points
+""")
+
 parser.add_argument("-f","--fasta",
 								type=str,
 								help="Translated fasta")

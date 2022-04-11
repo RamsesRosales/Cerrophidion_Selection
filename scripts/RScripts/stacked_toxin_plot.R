@@ -1,7 +1,8 @@
 library(argparser)
 
 
-args<-arg_parser(description = "Script to make a stack plot of toxins families, alternatively you can import the function",
+args<-arg_parser(description = "Script to make a stack plot of toxins families, alternatively you can import the function\n
+                 by sourcing the script, to run it from the shell you have to set -f F",
            name = "",
            hide.opts = F)
 args<-add_argument(args,arg = "--functions",

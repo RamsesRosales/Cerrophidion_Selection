@@ -3,7 +3,9 @@
 library(argparser)
 
 
-args<-arg_parser(description = "Script to get numbers from the population of snakes",
+args<-arg_parser(description = "Script to get numbers from the toxins of different population snakes\n
+                 it returns the number of toxins missing for each population\n
+                 and the number of toxins present on each population",
                  name = "",
                  hide.opts = F)
 args<-add_argument(args,arg = "--input",
@@ -41,17 +43,17 @@ for (i in 1:nrow(Cgodm)){
   AvN<-c(AvN,mean(as.numeric(Cgodm[i,c(argmts$north + 3)])))
   AvS<-c(AvS,mean(as.numeric(Cgodm[i,c(3+c(1:argmts$number_of_individuals)[-c(argmts$north)])])))
 }
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("missing in North population")
 print(length(which(AvN == 0)))
 print("missing in South population")
 print(length(which(AvS == 0)))
 
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("Toxin missing in all the individuals")
 length(which(Cgodm[,ncol(Cgodm)] == 0))
 
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("Toxins missing by individual")
 for (i in 4:c(3 + argmts$number_of_individuals)){
   print(colnames(Cgodm)[i])
@@ -64,15 +66,15 @@ for (i in 1:nrow(Cgodm)){
     core<-core +1
   }
 }
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("core genes")
 print(core)
 
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("genes of North population")
 print(nrow(Cgodm)+length(which(AvS == 0)))
 
-print(paste0(rep("*",50)))
+print(paste0(rep("*",19)))
 print("genes of South population")
 print(nrow(Cgodm)-length(which(AvN == 0)))
 

@@ -4,7 +4,10 @@
 import argparse
 
 #Returns a csv with the isoelectric poin of each sequence in the fasta file
-parser = argparse.ArgumentParser(description = "translates or a nucleotide fasta to a aminoacide fasta\n make sure your sequences are CDS")
+parser = argparse.ArgumentParser(description = """
+translates or a nucleotide fasta to a aminoacide fasta\n
+make sure your sequences are CDS.
+""")
 parser.add_argument("-f","--fasta",
 								type=str,
 								help="Translated fasta")
