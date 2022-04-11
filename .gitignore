@@ -3,4 +3,5 @@
 ./*/DS_Store
 ./*.html
 ./*/*.html
-
+./.Rhistory
+./*/.Rhistory
