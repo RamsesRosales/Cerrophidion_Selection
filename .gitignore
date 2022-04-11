@@ -1,7 +1,6 @@
 .git
 ./.DS_Store
-./second_part/.DS_Store
-./pictures/.DS_Store
-./second_part/Cgodm_selection_BMC.nb.html
-./firts_part/Scripts_Paper.nb.html
-./Readme.nb.html
+./*/DS_Store
+./*.html
+./*/*.html
+
