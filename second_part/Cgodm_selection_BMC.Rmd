@@ -8,16 +8,16 @@ author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph
 date: "`r format(Sys.time(), '%Y %B %d')`"
 always_allow_html: true
 output:
-  github_document:
+  html_document:
     toc: yes
-    toc_depth: 4
+    df_print: paged
   html_notebook:
     theme: journal
     toc: yes
     toc_float: yes
-  html_document:
+  github_document:
     toc: yes
-    df_print: paged
+    toc_depth: 4
 ---
 
 # R analysis 

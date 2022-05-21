@@ -72,7 +72,7 @@ for (i in 1:length(varnames)){
 
 dir.create('Dif_Exp')
 
-#run the loop to get the DE of tenes considering all the genes and the normal DESeq2 not the Likelihod Ratio Test (LRT)
+#run the loop to get the DE of genes considering all the genes and the normal DESeq2 not the Likelihod Ratio Test (LRT)
 for (i in 1:length(fndf)){
   DESeq2<-get(eval(paste0(fndf[i])))
   keep <- rowSums(counts(DESeq2)) >= 10
