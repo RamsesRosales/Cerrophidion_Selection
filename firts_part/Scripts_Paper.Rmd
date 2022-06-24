@@ -7,16 +7,16 @@ author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph
   Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
 date: "`r format(Sys.time(), '%Y %B %d')`"
 output:
-  github_document:
-    toc: yes
-    toc_depth: 4
-  html_document:
-    toc: yes
-    df_print: paged
   html_notebook:
     theme: journal
     toc: yes
     toc_float: yes
+  html_document:
+    toc: yes
+    df_print: paged
+  github_document:
+    toc: yes
+    toc_depth: 4
 ---
 
 
