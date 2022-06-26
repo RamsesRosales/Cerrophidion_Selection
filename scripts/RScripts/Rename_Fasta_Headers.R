@@ -17,8 +17,11 @@ argu<-add_argument(argu,arg = "--ref_table", short = "-t", help = "in case you a
 argu<-add_argument(argu,arg = "--ordered", short = "-o", 
                    help = "set as True in case you have a file with the new names in order, but the old names dont match exactly", 
                    default = F)
-argu<-add_argument(argu,arg = "--unordered", short = "-u", 
+argu<-add_argument(argu,arg = "--unordered", short = "-o", 
                    help = "set as True in case you have a file with the new names unordered and with weird characters as '|,[]'", 
+                   default = F)
+argu<-add_argument(argu,arg = "--strict", short = "-s", 
+                   help = "set as True if you want to conserve the same order in the ouput", 
                    default = F)
 
 argum<-parse_args(argu)
@@ -106,8 +109,19 @@ if (argum$unordered){
 }
 
 
-print("rename fasta headers")
-rename.fasta(paste(argum$input),ref_table,outfile = paste0(fasta_name,"_renamed.fasta"))
+if(argum$strict){
+  for (i in 1:nrow(ref_table)){
+    attr(data[[i]],which = "name") <- ref_table$new_names[i]
+  }
+  print("rename fasta headers")
+  write.fasta(data,file = paste0(fasta_name,"_renamed.fasta"),names = getName.list(data),nbchar = max(getLength.list(data)))
+}else{
+  print("rename fasta headers")
+  rename.fasta(paste(argum$input),ref_table,outfile = paste0(fasta_name,"_renamed.fasta"))
+}
+
+
+
 
 if (argum$pattern != "No" & argum$ref_table == "No"){
   print("print reference table")
