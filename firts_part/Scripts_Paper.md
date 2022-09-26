@@ -7,7 +7,7 @@ Ahumada-Carrillo, Ricardo Ramirez-Chaparro, Miguel Angel De la
 Torre-Loranca, Jason L. Strickland, Andrew J. Mason, Matthew L. Holding,
 Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Tristan D.
 Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
-2022 April 06
+2022 September 26
 
 -   [Assembly](#assembly)
     -   [Pre Assembly](#pre-assembly)
@@ -1659,8 +1659,10 @@ grep -E "[3456] " present_genes.csv> tmp
 #### this section is not necesarry as I used the cleaned consensus as reference.
 cp ../../../../Cgodm_transcriptome/02rsem_clean/remove.list .
 
+#### this is necesary as we use the file tmp_final later
 cat tmp > tmp_final
 
+#### this section is not necesarry as I used the cleaned consensus as reference.
 for i in `cat remove.list`
 do grep -c "TOXIN" tmp_final
 grep "${i}" tmp_final
@@ -1699,7 +1701,7 @@ cd /home/ramsesr/.conda/pkgs/snpeff-5.0-hdfd78af_1/share/snpeff-5.0-1
 #change the path of the databases for the path you are going to use to save your files in this case (/zfs/veom/Ramses/bin/snpEff/data/Cgodm)
 nano snpEff.config 
 #change data.dir = ./data for 
-data.dir = /zfs/veom/Ramses/bin/snpEff/data/Cgodm
+data.dir = /zfs/veom/Ramses/bin/snpEff/data/
 echo "Cgodm.genome : Cgodm" >> snpEff.config
 
 ##now we have to build the data base
@@ -1909,10 +1911,15 @@ parallel -a Genes.txt --sshloginfile $PBS_NODEFILE -j 1 --verbose "echo {}
     tail -n+2 TajimasD_Nonsynonymous/"{}".Tajima.D >> RESULTS/TajimasD_Nonsynonymous.txt"
 ```
 
+to get the lenght of the transcripts in the same order than in the
+Genes.txt file runt this
+
 ``` bash
 cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/test/PhasedSNPs/Analysis_filtered
 ./lenght.sh
 ```
+
+content of the script
 
 ``` bash
 #!/bin/bash
@@ -1926,6 +1933,26 @@ grep -e ${i} tmp1 >> length.txt
 done
 
 perl -p -i -e 's/##contig.*length=([\d]*)>/$1/g' length.txt
+```
+
+the tables in the results have random blank lines, to correct that run
+the next script
+
+``` bash
+cd /zfs/venom/Ramses/Cerrophidion/Variants/Cgodm_goodone/test/PhasedSNPs/Analysis_filtered/RESULTS
+./correct_tables.sh 
+```
+
+content of the script
+
+``` bash
+#correct TXT tables, for some reason have randon extra spaces and I dont know why
+
+tail -n +2 -q ../TajimasD_perGene/* > TajimaD_perGene.txt
+tail -n +2 -q ../TajimasD_Nonsynonymous/* > TajimasD_Nonsynonymous.txt
+tail -n +2 -q ../TajimasD_Synonymous/* > TajimasD_Synonymous.txt
+tail -n +2 -q ../TajimaD_perSite/* > TajimaD_perSite.txt
+tail -n +2 -q ../NDiversity/* > Pi_perSite.txt
 ```
 
 ### Run Analysis(HyPhy BUSTED)
@@ -2076,6 +2103,28 @@ perl -p -i -e "s/_noStop\.fasta\.BUSTED\.json//g" Busted_Results
 perl -p -i -e "s/\"LRT\"\://g" Busted_Results
 perl -p -i -e "s/\"p-value\"\://g" Busted_Results
 perl -p -i -e "s/,,/,/g" Busted_Results
+```
+
+The program RemoveStops cut the names of some of my files, this will
+make and error later when we try to relate the results from BUSTED with
+the rest of the results, so to avoid that I ran these script to correct
+the changed names withing the directory with the Busted\_Results file.
+
+``` bash
+./correct_table.sh
+```
+
+The directory assumes you have a file called Genes.txt with the right
+names from the genes in the parent directory.
+
+``` bash
+mv Busted_Results Busted_Results_original
+head -n 1 Busted_Results_original > Busted_Results
+for i in $(tail -n +2 Busted_Results_original | cut -d "," -f 1)
+do echo $i
+grep $i ../Genes.txt 
+echo $(grep ${i} ../Genes.txt),$(grep ${i} Busted_Results_original | cut -d "," -f 2-9) >> Busted_Results
+done
 ```
 
 ## Prepare Final Data
