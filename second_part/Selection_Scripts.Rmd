@@ -24,6 +24,8 @@ output:
 always_allow_html: yes
 ---
 
+**Jounal of Molecular Ecology**<br>
+
 Corresponding author:<br>
 Christopher L. Parkinson, Ramses A Rosales-García <br>
 Clemson University<br>
