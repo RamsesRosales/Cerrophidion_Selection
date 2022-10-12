@@ -1,24 +1,37 @@
 ---
-title: R_SCRIPTS:Venom variation and evolution in populations of montane pitvipers (*Viperidae*\ :*Cerrophidion*).
+title: "R_SCRIPTS:Sequence divergence in venom genes within and between *Cerrophidion*
+  (Viperidae\ :\ Crotalinae) species is driven by mutation-drift equilibrium."
 author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph I.
   Grunwald, Jason M. Jones, Hector Franz-Chavez, Ivan T. Ahumada-Carrillo, Ricardo
   Ramirez-Chaparro, Miguel Angel De la Torre-Loranca, Jason L. Strickland, Andrew
   J. Mason, Matthew L. Holding, Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R.
-  Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
+  Rokyta, Edward A. Myers, Christopher Parkinson
 date: "`r format(Sys.time(), '%Y %B %d')`"
-always_allow_html: true
 output:
   html_notebook:
     theme: journal
     toc: yes
     toc_float: yes
-  github_document:
+  pdf_document:
     toc: yes
-    toc_depth: 4
+    toc_depth: '4'
   html_document:
     toc: yes
     df_print: paged
+  github_document:
+    toc: yes
+    toc_depth: 4
+always_allow_html: yes
 ---
+
+Corresponding author:<br>
+Christopher L. Parkinson, Ramses A Rosales-García <br>
+Clemson University<br>
+Department of Biological Science<br>
+190 Collings St., 157B Life Sciences Facility<br>
+Clemson, SC USA 29634<br>
+email: [viper@clemson.edu](viper@clemson.edu),[ramsesr@g.clemson.edu](ramsesr@g.clemson.edu)<br>
+phone: (864) 656-3058 <br>
 
 # R analysis 
 

@@ -7,115 +7,115 @@ Ahumada-Carrillo, Ricardo Ramirez-Chaparro, Miguel Angel De la
 Torre-Loranca, Jason L. Strickland, Andrew J. Mason, Matthew L. Holding,
 Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Tristan D.
 Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
-2022 April 01
+2022 August 09
 
--   [R analysis](#r-analysis)
-    -   [rename toxins by average expression and toxin
+  - [R analysis](#r-analysis)
+      - [rename toxins by average expression and toxin
         families](#rename-toxins-by-average-expression-and-toxin-families)
-    -   [snpEFF Data](#snpeff-data)
-        -   [Is there a significant association between the type of
+      - [snpEFF Data](#snpeff-data)
+          - [Is there a significant association between the type of
             mutation (nonsynonymous vs. synonymous) and the transcript
             class (toxin
             vs. nontoxin)?](#is-there-a-significant-association-between-the-type-of-mutation-nonsynonymous-vs-synonymous-and-the-transcript-class-toxin-vs-nontoxin)
-        -   [Is there a significant difference in the number of SNPs per
+          - [Is there a significant difference in the number of SNPs per
             kilobase between toxin and
             nontoxins?](#is-there-a-significant-difference-in-the-number-of-snps-per-kilobase-between-toxin-and-nontoxins)
-        -   [Is there a significant difference in the number of non
+          - [Is there a significant difference in the number of non
             synonymous SNPs per kilobase between toxin and
             nontoxins?](#is-there-a-significant-difference-in-the-number-of-non-synonymous-snps-per-kilobase-between-toxin-and-nontoxins)
-        -   [Is there a significant difference in the number of
+          - [Is there a significant difference in the number of
             synonymous SNPs per kilobase between toxin and
             nontoxins?](#is-there-a-significant-difference-in-the-number-of-synonymous-snps-per-kilobase-between-toxin-and-nontoxins)
-    -   [Nucleotide diversity](#nucleotide-diversity)
-        -   [Is there a significant difference in nucleotide diversity
+      - [Nucleotide diversity](#nucleotide-diversity)
+          - [Is there a significant difference in nucleotide diversity
             between toxins and
             nontoxins?](#is-there-a-significant-difference-in-nucleotide-diversity-between-toxins-and-nontoxins)
-        -   [Does nucleotide diversity correlate with average expression
+          - [Does nucleotide diversity correlate with average expression
             levels?](#does-nucleotide-diversity-correlate-with-average-expression-levels)
-        -   [Does nucleotide diversity correlate with average expression
+          - [Does nucleotide diversity correlate with average expression
             levels **in
             toxins**?](#does-nucleotide-diversity-correlate-with-average-expression-levels-in-toxins)
-        -   [Does nucleotide diversity correlate with average expression
+          - [Does nucleotide diversity correlate with average expression
             levels and toxin family **in
             toxins**?](#does-nucleotide-diversity-correlate-with-average-expression-levels-and-toxin-family-in-toxins)
-    -   [Tajima’s D](#tajimas-d)
-        -   [Are estimates of Tajima’s D significantly different than 0
+      - [Tajima’s D](#tajimas-d)
+          - [Are estimates of Tajima’s D significantly different than 0
             (suggesting selection) for toxins or
             nontoxins?](#are-estimates-of-tajimas-d-significantly-different-than-0-suggesting-selection-for-toxins-or-nontoxins)
-        -   [Is there a significant difference in Tajima’s D between
+          - [Is there a significant difference in Tajima’s D between
             toxins and
             nontoxins?](#is-there-a-significant-difference-in-tajimas-d-between-toxins-and-nontoxins)
-        -   [Figure 2A](#figure-2a)
-        -   [Does Tajima’s D (All, Positive, and Negative values)
+          - [Figure 2A](#figure-2a)
+          - [Does Tajima’s D (All, Positive, and Negative values)
             correlate with average expression
             levels?](#does-tajimas-d-all-positive-and-negative-values-correlate-with-average-expression-levels)
-        -   [Does Tajima’s D (All, Positive, and Negative values)
+          - [Does Tajima’s D (All, Positive, and Negative values)
             correlate with average expression levels **in
             toxins**?](#does-tajimas-d-all-positive-and-negative-values-correlate-with-average-expression-levels-in-toxins)
-        -   [Does Tajima’s D (All, Positive, and Negative values)
+          - [Does Tajima’s D (All, Positive, and Negative values)
             correlate with average expression levels and toxin families
             **in
             toxins**?](#does-tajimas-d-all-positive-and-negative-values-correlate-with-average-expression-levels-and-toxin-families-in-toxins)
-        -   [Figure 3A](#figure-3a)
-    -   [Global Fst](#global-fst)
-        -   [Is there a significant difference in Global Fst between
+          - [Figure 3A](#figure-3a)
+      - [Global Fst](#global-fst)
+          - [Is there a significant difference in Global Fst between
             toxins and
             nontoxins?](#is-there-a-significant-difference-in-global-fst-between-toxins-and-nontoxins)
-        -   [Figure 2B](#figure-2b)
-        -   [Does Global Fst correlate with average expression
+          - [Figure 2B](#figure-2b)
+          - [Does Global Fst correlate with average expression
             levels?](#does-global-fst-correlate-with-average-expression-levels)
-        -   [Does Global Fst correlate with average expression levels
+          - [Does Global Fst correlate with average expression levels
             **in
             toxins**?](#does-global-fst-correlate-with-average-expression-levels-in-toxins)
-        -   [Does Global Fst correlate with average expression levels
+          - [Does Global Fst correlate with average expression levels
             and toxin family **in
             toxins**?](#does-global-fst-correlate-with-average-expression-levels-and-toxin-family-in-toxins)
-        -   [Figure 3B](#figure-3b)
-    -   [Tajima’s D Synonymous
+          - [Figure 3B](#figure-3b)
+      - [Tajima’s D Synonymous
         Mutations](#tajimas-d-synonymous-mutations)
-        -   [Are estimates of Tajima’s D for synonymous mutations
+          - [Are estimates of Tajima’s D for synonymous mutations
             significantly different than 0 (suggesting selection) for
             toxins or
             nontoxins?](#are-estimates-of-tajimas-d-for-synonymous-mutations-significantly-different-than-0-suggesting-selection-for-toxins-or-nontoxins)
-        -   [Is there a significant difference in Tajima’s D for
+          - [Is there a significant difference in Tajima’s D for
             synonymous mutations between toxins and
             nontoxins?](#is-there-a-significant-difference-in-tajimas-d-for-synonymous-mutations-between-toxins-and-nontoxins)
-    -   [Tajima’s D Nonsynonymous
+      - [Tajima’s D Nonsynonymous
         Mutations](#tajimas-d-nonsynonymous-mutations)
-        -   [Are estimates of Tajima’s D for nonsynonymous mutations
+          - [Are estimates of Tajima’s D for nonsynonymous mutations
             significantly different than 0 (suggesting selection) for
             toxins or
             nontoxins?](#are-estimates-of-tajimas-d-for-nonsynonymous-mutations-significantly-different-than-0-suggesting-selection-for-toxins-or-nontoxins)
-        -   [Is there a significant difference in Tajima’s D for
+          - [Is there a significant difference in Tajima’s D for
             nonsynonymous mutations between toxins and
             nontoxins?](#is-there-a-significant-difference-in-tajimas-d-for-nonsynonymous-mutations-between-toxins-and-nontoxins)
-        -   [Does nonsynonymous Tajima’s D (All, Positive, and Negative
+          - [Does nonsynonymous Tajima’s D (All, Positive, and Negative
             values) correlate with average expression levels and toxin
             families **in
             toxins**?](#does-nonsynonymous-tajimas-d-all-positive-and-negative-values-correlate-with-average-expression-levels-and-toxin-families-in-toxins)
-    -   [HyPhy Busted](#hyphy-busted)
-        -   [Is there a significant difference in BUSTED between toxins
+      - [HyPhy Busted](#hyphy-busted)
+          - [Is there a significant difference in BUSTED between toxins
             and
             nontoxins?](#is-there-a-significant-difference-in-busted-between-toxins-and-nontoxins)
-            -   [Non Parametric test](#non-parametric-test)
-            -   [SLM](#slm)
-        -   [Figure 2C](#figure-2c)
-        -   [Do BUSTED Likelihood Ratios correlate with average
+              - [Non Parametric test](#non-parametric-test)
+              - [SLM](#slm)
+          - [Figure 2C](#figure-2c)
+          - [Do BUSTED Likelihood Ratios correlate with average
             expression
             levels?](#do-busted-likelihood-ratios-correlate-with-average-expression-levels)
-            -   [Non parametric](#non-parametric)
-            -   [Non parametric test](#non-parametric-test-1)
-            -   [SLM](#slm-1)
-            -   [Non parametric](#non-parametric-1)
-            -   [SLM](#slm-2)
-        -   [Do BUSTED Likelihood Ratios correlate with average
+              - [Non parametric](#non-parametric)
+              - [Non parametric test](#non-parametric-test-1)
+              - [SLM](#slm-1)
+              - [Non parametric](#non-parametric-1)
+              - [SLM](#slm-2)
+          - [Do BUSTED Likelihood Ratios correlate with average
             expression levels **in
             toxins**?](#do-busted-likelihood-ratios-correlate-with-average-expression-levels-in-toxins)
-            -   [Non parametric](#non-parametric-2)
-            -   [SLM](#slm-3)
-            -   [SLM](#slm-4)
-        -   [Figure 3C](#figure-3c)
-    -   [COWPLOTS](#cowplots)
+              - [Non parametric](#non-parametric-2)
+              - [SLM](#slm-3)
+              - [SLM](#slm-4)
+          - [Figure 3C](#figure-3c)
+      - [COWPLOTS](#cowplots)
 
 # R analysis
 
@@ -134,10 +134,17 @@ for (i in libraries){
 
 #load libraries
 library(readr)
+```
+
+    ## Warning: package 'readr' was built under R version 4.0.5
+
+``` r
 #library(readxl)
 library(ggplot2)
 library(dplyr)
 ```
+
+    ## Warning: package 'dplyr' was built under R version 4.0.5
 
     ## 
     ## Attaching package: 'dplyr'
@@ -164,8 +171,15 @@ library(kableExtra)
 
 ``` r
 library(tidyr)
+```
+
+    ## Warning: package 'tidyr' was built under R version 4.0.5
+
+``` r
 library(compositions)
 ```
+
+    ## Warning: package 'compositions' was built under R version 4.0.5
 
     ## Welcome to compositions, a package for compositional data analysis.
     ## Find an intro with "? compositions"
@@ -193,7 +207,6 @@ Data<-read_csv("Cgodm_finaldata.csv")
     ## chr  (3): ID, class, toxin_family
     ## dbl (31): Cgodm.CLP2359, Cgodm.CLP2360, Cgodm.CLP2362, Cgodm.CLP2377, Cgodm....
     ## lgl  (1): diff_exprs
-
     ## 
     ## ℹ Use `spec()` to retrieve the full column specification for this data.
     ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
@@ -278,97 +291,189 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 <th style="text-align:right;">
+
 perKB\_all
+
 </th>
+
 <th style="text-align:right;">
+
 perKB\_all\_sd
+
 </th>
+
 <th style="text-align:right;">
+
 Total\_Nonsynonymous
+
 </th>
+
 <th style="text-align:right;">
+
 Total\_Synonymous
+
 </th>
+
 <th style="text-align:right;">
+
 Total\_Variants
+
 </th>
+
 <th style="text-align:right;">
+
 Prop\_nonsyn
+
 </th>
+
 <th style="text-align:right;">
+
 Prop\_syn
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 <td style="text-align:right;">
+
 6.765957
+
 </td>
+
 <td style="text-align:right;">
+
 4.307966
+
 </td>
+
 <td style="text-align:right;">
+
 8563
+
 </td>
+
 <td style="text-align:right;">
+
 24094
+
 </td>
+
 <td style="text-align:right;">
+
 32657
+
 </td>
+
 <td style="text-align:right;">
+
 0.2622102
+
 </td>
+
 <td style="text-align:right;">
+
 0.7377898
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 <td style="text-align:right;">
+
 6.423349
+
 </td>
+
 <td style="text-align:right;">
+
 3.580440
+
 </td>
+
 <td style="text-align:right;">
+
 236
+
 </td>
+
 <td style="text-align:right;">
+
 154
+
 </td>
+
 <td style="text-align:right;">
+
 390
+
 </td>
+
 <td style="text-align:right;">
+
 0.6051282
+
 </td>
+
 <td style="text-align:right;">
+
 0.3948718
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Is there a significant association between the type of mutation (nonsynonymous vs. synonymous) and the transcript class (toxin vs. nontoxin)?
@@ -598,52 +703,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.3149234
+
 </td>
+
 <td style="text-align:right;">
+
 0.0812495
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.3252790
+
 </td>
+
 <td style="text-align:right;">
+
 0.0843843
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Is there a significant difference in nucleotide diversity between toxins and nontoxins?
@@ -757,52 +909,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.3150844
+
 </td>
+
 <td style="text-align:right;">
+
 0.0811962
+
 </td>
+
 <td style="text-align:right;">
+
 4522
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
+
 0.3144824
+
 </td>
+
 <td style="text-align:right;">
+
 0.0901802
+
 </td>
+
 <td style="text-align:right;">
+
 54
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -897,52 +1096,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.3267182
+
 </td>
+
 <td style="text-align:right;">
+
 0.0840496
+
 </td>
+
 <td style="text-align:right;">
+
 59
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
+
 0.3158437
+
 </td>
+
 <td style="text-align:right;">
+
 0.0911268
+
 </td>
+
 <td style="text-align:right;">
+
 9
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -1112,52 +1358,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
--0.1875167
+
+\-0.1875167
+
 </td>
+
 <td style="text-align:right;">
+
 0.7775041
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
--0.0346594
+
+\-0.0346594
+
 </td>
+
 <td style="text-align:right;">
+
 0.8240109
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Are estimates of Tajima’s D significantly different than 0 (suggesting selection) for toxins or nontoxins?
@@ -1386,52 +1679,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
--0.1858890
+
+\-0.1858890
+
 </td>
+
 <td style="text-align:right;">
+
 0.7786183
+
 </td>
+
 <td style="text-align:right;">
+
 4522
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
--0.1313354
+
+\-0.1313354
+
 </td>
+
 <td style="text-align:right;">
+
 0.7598011
+
 </td>
+
 <td style="text-align:right;">
+
 54
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -1474,6 +1814,8 @@ library(Hmisc)
     ## Loading required package: lattice
 
     ## Loading required package: survival
+
+    ## Warning: package 'survival' was built under R version 4.0.5
 
     ## Loading required package: Formula
 
@@ -1623,52 +1965,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
--0.0389956
+
+\-0.0389956
+
 </td>
+
 <td style="text-align:right;">
+
 0.8432139
+
 </td>
+
 <td style="text-align:right;">
+
 59
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
--0.0062333
+
+\-0.0062333
+
 </td>
+
 <td style="text-align:right;">
+
 0.7284969
+
 </td>
+
 <td style="text-align:right;">
+
 9
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -2032,52 +2421,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.1894019
+
 </td>
+
 <td style="text-align:right;">
+
 0.2087274
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.2028064
+
 </td>
+
 <td style="text-align:right;">
+
 0.2552510
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Is there a significant difference in Global Fst between toxins and nontoxins?
@@ -2194,52 +2630,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.1906812
+
 </td>
+
 <td style="text-align:right;">
+
 0.2092294
+
 </td>
+
 <td style="text-align:right;">
+
 4522
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
+
 0.0991572
+
 </td>
+
 <td style="text-align:right;">
+
 0.2115429
+
 </td>
+
 <td style="text-align:right;">
+
 54
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -2334,52 +2817,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.2227856
+
 </td>
+
 <td style="text-align:right;">
+
 0.2614199
+
 </td>
+
 <td style="text-align:right;">
+
 59
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
+
 0.0718318
+
 </td>
+
 <td style="text-align:right;">
+
 0.1671732
+
 </td>
+
 <td style="text-align:right;">
+
 9
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -2554,52 +3084,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
--0.1301358
+
+\-0.1301358
+
 </td>
+
 <td style="text-align:right;">
+
 0.7888200
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
--0.0077297
+
+\-0.0077297
+
 </td>
+
 <td style="text-align:right;">
+
 0.8446643
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Are estimates of Tajima’s D for synonymous mutations significantly different than 0 (suggesting selection) for toxins or nontoxins?
@@ -3026,14 +3603,11 @@ AIC(gt0_lm1)
     geom_abline(intercept = coef(gt0_lm)[1],slope=coef(gt0_lm)[2],lty=2) +
     draw_label(paste("n =",nrow(Tajima_tox),"; R2=",round(m$r.squared,2),"; p =",round(m$coefficients[2,4],2)),x=7.5,y=0,size=10) +
     draw_label(paste("n =",nrow(lt0),"; R2=",round(m_lt0$r.squared,2),"; p =",round(m_lt0$coefficients[2,4],2)),x=7.5,y=-1,size=10) +
-    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10))#+
+    draw_label(paste("n =",nrow(gt0),"; R2=",round(m_gt0$r.squared,2),"; p =",round(m_gt0$coefficients[2,4],2)),x=7.5,y=1,size=10)+
+    theme_classic())
 ```
 
 ![](Cgodm_selection_BMC_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
-
-``` r
- # theme_classic()
-```
 
 ## Tajima’s D Nonsynonymous Mutations
 
@@ -3054,52 +3628,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
--0.1883360
+
+\-0.1883360
+
 </td>
+
 <td style="text-align:right;">
+
 0.7085367
+
 </td>
+
 <td style="text-align:right;">
+
 4508
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
--0.0051722
+
+\-0.0051722
+
 </td>
+
 <td style="text-align:right;">
+
 0.7740596
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Are estimates of Tajima’s D for nonsynonymous mutations significantly different than 0 (suggesting selection) for toxins or nontoxins?
@@ -3596,52 +4217,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 class
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 Nontoxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.2869356
+
 </td>
+
 <td style="text-align:right;">
+
 1.037574
+
 </td>
+
 <td style="text-align:right;">
+
 4497
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 Toxin
+
 </td>
+
 <td style="text-align:right;">
+
 0.6380741
+
 </td>
+
 <td style="text-align:right;">
+
 1.458140
+
 </td>
+
 <td style="text-align:right;">
+
 68
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ### Is there a significant difference in BUSTED between toxins and nontoxins?
@@ -3713,6 +4381,8 @@ library(car)
 ```
 
     ## Loading required package: carData
+
+    ## Warning: package 'carData' was built under R version 4.0.5
 
     ## 
     ## Attaching package: 'car'
@@ -3888,52 +4558,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.2944282
+
 </td>
+
 <td style="text-align:right;">
+
 1.0509219
+
 </td>
+
 <td style="text-align:right;">
+
 4511
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
+
 0.1031940
+
 </td>
+
 <td style="text-align:right;">
+
 0.3876709
+
 </td>
+
 <td style="text-align:right;">
+
 54
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 ``` r
@@ -4098,52 +4815,99 @@ kable(x) %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed"
 ```
 
 <table class="table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+
 <thead>
+
 <tr>
+
 <th style="text-align:left;">
+
 diff\_exprs
+
 </th>
+
 <th style="text-align:right;">
+
 mean
+
 </th>
+
 <th style="text-align:right;">
+
 sd
+
 </th>
+
 <th style="text-align:right;">
+
 n
+
 </th>
+
 </tr>
+
 </thead>
+
 <tbody>
+
 <tr>
+
 <td style="text-align:left;">
+
 FALSE
+
 </td>
+
 <td style="text-align:right;">
+
 0.7354095
+
 </td>
+
 <td style="text-align:right;">
+
 1.5437869
+
 </td>
+
 <td style="text-align:right;">
+
 59
+
 </td>
+
 </tr>
+
 <tr>
+
 <td style="text-align:left;">
+
 TRUE
+
 </td>
+
 <td style="text-align:right;">
--0.0000137
+
+\-0.0000137
+
 </td>
+
 <td style="text-align:right;">
+
 0.0000412
+
 </td>
+
 <td style="text-align:right;">
+
 9
+
 </td>
+
 </tr>
+
 </tbody>
+
 </table>
 
 #### Non parametric

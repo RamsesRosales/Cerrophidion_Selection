@@ -1,13 +1,14 @@
-SCRIPTS:Venom variation and evolution in populations of montane
-pitvipers (*Viperidae* :*Cerrophidion*).
+SCRIPTS:Sequence divergence in venom genes within and between
+*Cerrophidion* (Viperidae : Crotalinae) species is driven by
+mutation-drift equilibrium.
 ================
 Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph
 I. Grunwald, Jason M. Jones, Hector Franz-Chavez, Ivan T.
 Ahumada-Carrillo, Ricardo Ramirez-Chaparro, Miguel Angel De la
 Torre-Loranca, Jason L. Strickland, Andrew J. Mason, Matthew L. Holding,
-Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Tristan D.
-Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
-2022 September 26
+Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Edward A.
+Myers, Christopher Parkinson
+2022 October 12
 
 -   [Assembly](#assembly)
     -   [Pre Assembly](#pre-assembly)
@@ -55,8 +56,10 @@ Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
     -   [Variant Calling](#variant-calling)
     -   [Selection Analysis](#selection-analysis)
         -   [filter coverage](#filter-coverage)
-        -   [Run Analysis(Tajimas’ D, *F*<sub>*S**T*</sub>, *π* and
-            snpEff)](#run-analysistajimas-d-f_st-pi-and-snpeff)
+        -   [Run Analysis(Tajimas’ D,
+            ![F\_{ST}](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;F_%7BST%7D "F_{ST}"),
+            ![\\pi](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpi "\pi")
+            and snpEff)](#run-analysistajimas-d-f_st-pi-and-snpeff)
             -   [snpEff reference](#snpeff-reference)
             -   [Run Analysis](#run-analysis)
         -   [Run Analysis(HyPhy BUSTED)](#run-analysishyphy-busted)
@@ -66,6 +69,13 @@ Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
         -   [Correct tables](#correct-tables)
         -   [Merge tables](#merge-tables)
 -   [Final](#final)
+
+Corresponding author:<br> Christopher L. Parkinson, Ramses A
+Rosales-García <br> Clemson University<br> Department of Biological
+Science<br> 190 Collings St., 157B Life Sciences Facility<br> Clemson,
+SC USA 29634<br> email:
+[viper@clemson.edu](viper@clemson.edu),[ramsesr@g.clemson.edu](ramsesr@g.clemson.edu)<br>
+phone: (864) 656-3058 <br>
 
 # Assembly
 
@@ -942,7 +952,7 @@ cd ../..
 ```
 
 Then used the script RSEM\_combiner.R
-(<https://github.com/RhettRautsaw/Bioinformatics/blob/master/scripts/RSEM_combiner.R>)
+(<a href="https://github.com/RhettRautsaw/Bioinformatics/blob/master/scripts/RSEM_combiner.R" class="uri">https://github.com/RhettRautsaw/Bioinformatics/blob/master/scripts/RSEM_combiner.R</a>)
 to filter the Toxins with expression below the 95% percentile
 
 ``` bash
@@ -1255,7 +1265,7 @@ busco -i /zfs/venom/Ramses/Cerrophidion/{}/07assembly/{}_assembly_reduced.fasta 
 ```
 
 run BuscoCleaner.py available at
-<https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts>
+<a href="https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts" class="uri">https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts</a>
 
 ``` bash
 #pbs script for this
@@ -1674,7 +1684,7 @@ rm tmp1
 #################
 ```
 
-### Run Analysis(Tajimas’ D, *F*<sub>*S**T*</sub>, *π* and snpEff)
+### Run Analysis(Tajimas’ D, ![F\_{ST}](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;F_%7BST%7D "F_{ST}"), ![\\pi](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpi "\pi") and snpEff)
 
 #### snpEff reference
 
@@ -1976,7 +1986,7 @@ qsub Cgodm_HyPhy_busted_4.pbs
 ```
 
 The scripts Linearize.py and RemoveStop.py are available in
-<https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts>
+<a href="https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts" class="uri">https://github.com/RhettRautsaw/Bioinformatics/tree/master/scripts</a>
 
 ``` bash
 #PBS -N Cgodm_HyPhy_busted4.0
