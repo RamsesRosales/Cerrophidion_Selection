@@ -29,70 +29,76 @@ Script on R language
 
 The scripts are designed to be used in the following order.
 
-* data_frame_consense.R
-* consense.R
-* FancyPlots3.R
-* FancyPlotsAverage.R
-* FancyPlotAverageNS.R
-* TransConPlot_Species.R
-* stacked_toxin_plot.R
-* PlottingFunctions1.R (sourced by FancyPlots scripts)
+-   data_frame_consense.R
+-   consense.R
+-   FancyPlots3.R
+-   FancyPlotsAverage.R
+-   FancyPlotAverageNS.R
+-   TransConPlot_Species.R
+-   stacked_toxin_plot.R
+-   PlottingFunctions1.R (sourced by FancyPlots scripts)
 
 ## Differential Expression and Heat Map Pipeline
 
 The script are design to be run in the following order
 
-* consense_expected_count.R
-* ToxNames.R
-* Dif_Exp_Cerrophidion.R
-* Dif_Exp_Tab.R
-* Colors_HM_Cerrophidion.R (list of colors used by heatmap script)
-* Cerrophidion_HeatMap_AverageExpressionOrder.R
-* Cerrophidion_HeatMap_order_difExp.R (specific for Cgodmani data)
+-   consense_expected_count.R
+-   ToxNames.R
+-   Dif_Exp_Cerrophidion.R
+-   Dif_Exp_Tab.R
+-   Colors_HM_Cerrophidion.R (list of colors used by heatmap script)
+-   Cerrophidion_HeatMap_AverageExpressionOrder.R
+-   Cerrophidion_HeatMap_order_difExp.R (specific for Cgodmani data)
 
 ## Phylogenetics Formating
 
 Scripts used in different steps of the phylogenetic analysis mostly to format files.
 
-* Rename_Fasta_Headers.R
-* Clip_trees.R
-* Change_tree_names.R
-
+-   Rename_Fasta_Headers.R
+-   Clip_trees.R
+-   Change_tree_names.R
 
 ## Selection Table Formating
 
 Scripts used in other steps of the project, or not used.
 
-* make_FD_1.R
-* make_FD_2_final.R
+-   make_FD_1.R
+-   make_FD_2\_final.R
 
 ## Other Scripts
 
-* tox_numbers.R
-* mixing_df_tx.R
+-   tox_numbers.R
+-   mixing_df_tx.R
 
 # Python Scripts
 
 Script on Python language
 
-## Phylogenetic formating 
+## Manual Annotation pipeline
+
+The manual annotation pipeline scripts were writen by [Darin Rokyta](https://drokyta.com) and [Andrew Mason](https://eeob.osu.edu/people/mason.501) email them or to the correspondence authors to ask for those scripts
+
+-   Blast_parse_v6.py
+-   AutoAnnotator.py
+-   AutoAnnotatorFormat.py
+-   NextAnnotate_v0.3.py
+-   XML_Barber_v3.py
+
+## Phylogenetic formating
 
 Scripts used at different steps of the phylogenetic analysis for busco genes and for PLA2s
 
-* BuscoCleaner.py (modified from Rhett Rautsau)
-* Translate_RARG.py
-* filter_cov.py (Modified from Andrew Script)
-* nx2nw.py
-* IsoelectricPoint_df.py
-* extract_CDS.py
-* import_gb.py
+-   BuscoCleaner.py (modified from Rhett Rautsau)
+-   Translate_RARG.py
+-   filter_cov.py (Modified from Andrew Script)
+-   nx2nw.py
+-   IsoelectricPoint_df.py
+-   extract_CDS.py
+-   import_gb.py
 
 # Shell Scripts
 
 Some of the shell script used, other shell scripts might be seen in the first section directory markdown.
 
-* add_shebang.sh
-* busted_maketable
-
-
-
+-   add_shebang.sh
+-   busted_maketable
