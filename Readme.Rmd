@@ -1,6 +1,5 @@
-
 ---
-title: Venom variation and evolution in populations of montane pitvipers (*Viperidae*\ :*Cerrophidion*).
+title: Sequence divergence in venom genes within and between montane pitvipers (*Viperidae*\ :*Crotalinae* \ :*Cerrophidion*) species is driven by mutation-drift equilibrium.
 author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph I.
   Grunwald, Jason M. Jones, Hector Franz-Chavez, Ivan T. Ahumada-Carrillo, Ricardo
   Ramirez-Chaparro, Miguel Angel De la Torre-Loranca, Jason L. Strickland, Andrew
@@ -8,30 +7,39 @@ author: Ramses A. Rosales-Garcia, Rhett M. Rautsaw , Erich P. Hofmann, Christoph
   Rokyta, Tristan D. Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
 date: "`r format(Sys.time(), '%Y %B %d')`"
 output:
+  github_document:
+    toc: yes
+    toc_depth: 4
+  html_document:
+    toc: yes
+    df_print: paged
   html_notebook:
     theme: journal
     toc: yes
     toc_float: yes
-  html_document:
-    toc: yes
-    df_print: paged
-  github_document:
-    toc: yes
-    toc_depth: 4
 ---
-![*Cerrophidion tzotzilorum*](pictures/C_tzotzilorum1.jpg){width=500%}
+
+![*Cerrophidion tzotzilorum*](pictures/C_tzotzilorum1.jpg){width="500%"}
 
 This Github page contains the code and scripts used in the development of the paper.
 
-# first_part 
-This folder contain a markdown with the shell code used for assembly of transcriptomes, annotation, expression analysis, phylogenetics, variant calling and selection analisys. There are several scripts used that are found in the scropts folder. Some scripts are owned form a third party, in those cases we mentioned the location of the original script or the contact were the scripts might be found.
- 
+# first_part
+
+The [first part](firts_part/Scripts_Paper.md) contains the shell code used to assembly of transcriptomes, annotation, expression analysis, phylogenetics, variant calling and selection analisys. There are several [scripts](scripts/Scripts_Description.md) used that can be found in the [scripts](scripts) folder. Some scripts are owned by a third party, in those cases we mentioned the location of the original script or the contact were the scripts might be found.
+
 # second_part
-This folder contain the R script with the statistics analysis that compare selection signals in toxins vs nontoxins, the necessary data to run the analysis might be found withing the folder.
 
-# other folders
+The [second part](second_part/Cgodm_selection_BMC.md) contains the R scripts with the statistics analysis that compare selection signals in toxins vs nontoxins, the necessary data to run the analysis might be found withing the folder.
 
-The other folders containg additionals information. data folder contain the RSEM results in a extended format. The pictures folder contains the raw plots from were the figures of the paper were made.
+# Supplementary
 
+The [supplementary](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/supplementary) directory contains the suplementary material submitted to the table.
 
+-   Additional_Figures.pdf
+-   Additional_Tables.xlsx
+-   Annotation_Scripts.html
+-   Selection_Scripts.html
 
+# Data
+
+The [data](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data) directory contains the consensus transcriptomes used in the analysis.
