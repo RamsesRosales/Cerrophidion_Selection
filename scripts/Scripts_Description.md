@@ -12,6 +12,7 @@ Ramses Alejandro Rosales Garcia
     -   [Selection Table Formating](#selection-table-formating)
     -   [Other Scripts](#other-scripts)
 -   [Python Scripts](#python-scripts)
+    -   [Manual Annotation pipeline](#manual-annotation-pipeline)
     -   [Phylogenetic formating](#phylogenetic-formating)
 -   [Shell Scripts](#shell-scripts)
 
@@ -70,6 +71,17 @@ Scripts used in other steps of the project, or not used.
 # Python Scripts
 
 Script on Python language
+
+## Manual Annotation pipeline
+
+The manual annotation pipeline scripts were writen by [Darin Rokyta](https://drokyta.com) and [Andrew Mason](https://eeob.osu.edu/people/mason.501)
+email them or to the correspondence authors to ask for those scripts
+
+- Blast_parse_v6.py
+- AutoAnnotator.py
+- AutoAnnotatorFormat.py
+- NextAnnotate_v0.3.py
+- XML_Barber_v3.py
 
 ## Phylogenetic formating
 
