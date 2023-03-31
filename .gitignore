@@ -1,4 +1,6 @@
-.git
+./.RData
+./.DS_Store
+./*.html
 ./.DS_Store
 ./*/.DS_Store
 ./*.html
@@ -21,3 +23,5 @@
 ./scripts/.Rhistory
 ./scripts/RScripts/.Rhistory
 ./second_part/.RData
+.RData
+.Rhistory
