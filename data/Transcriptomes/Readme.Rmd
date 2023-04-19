@@ -1,0 +1,18 @@
+---
+title: "ReadMe"
+output:
+  github_document:
+    toc: yes
+    toc_depth: 4
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    theme: journal
+    toc: yes
+    toc_float: yes
+---
+
+# Consensus Transcriptomes
+
+Consensus trancriptomes will be submited once the paper is accepted for publication, for now if you are interested in look at those you can ask [Ramses Rosales](mailto:ramsesr@g.clemson.edu) for they.
