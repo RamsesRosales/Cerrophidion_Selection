@@ -8,7 +8,7 @@ Ahumada-Carrillo, Ricardo Ramirez-Chaparro, Miguel Angel De la
 Torre-Loranca, Jason L. Strickland, Andrew J. Mason, Matthew L. Holding,
 Miguel Borja, Gamaliel Castaneda-Gaytan, Darin R. Rokyta, Tristan D.
 Schramer, N. Jade Mellor, Edward A. Myers, Christopher Parkinson
-2023 March 31
+2023 April 19
 
 - <a href="#first_part" id="toc-first_part">first_part</a>
 - <a href="#second_part" id="toc-second_part">second_part</a>
@@ -57,4 +57,8 @@ directory contains the suplementary material submitted to the table.
 
 The
 [data](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data)
-directory contains the consensus transcriptomes used in the analysis.
+directory contains the [consensus
+transcriptomes](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data/Transcriptomes),
+the [RSEM
+results](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data/Expression)
+and other files generated and analised, during this work.

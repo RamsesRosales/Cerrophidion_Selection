@@ -25,7 +25,7 @@ This Github page contains the code and scripts used in the development of the pa
 
 # first_part
 
-The [first part](firts_part/Scripts_Paper.md) contains the shell code used to assembly of transcriptomes, annotation, expression analysis, phylogenetics, variant calling and selection analisys. There are several [scripts](scripts/Scripts_Description.md) used that can be found in the [scripts](scripts) folder. Some scripts are owned by a third party, in those cases we mentioned the location of the original script or the contact were the scripts might be found.
+The [first part](firts_part/Scripts_Paper.md) contains the shell code used to assembly of transcriptomes, annotation, expression analysis, phylogenetics, variant calling and selection analisys. There are several [scripts](scripts/Scripts_Description.md) used that can be found in the [scripts](scripts) folder. Some scripts are owned by a third party, in those cases we mentioned the location of the original script or the contact were the scripts might be found. 
 
 # second_part
 
@@ -42,4 +42,4 @@ The [supplementary](https://github.com/RamsesRosales/Cerrophidion_Selection/tree
 
 # Data
 
-The [data](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data) directory contains the consensus transcriptomes used in the analysis.
+The [data](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data) directory contains the [consensus transcriptomes](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data/Transcriptomes), the [RSEM results](https://github.com/RamsesRosales/Cerrophidion_Selection/tree/main/data/Expression) and other files generated and analised, during this work.
