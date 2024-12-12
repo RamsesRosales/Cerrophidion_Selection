@@ -1486,7 +1486,7 @@ the begining:
 
 ``` bash
 #nexus
-begin sets;'
+begin sets;
 ```
 
 then add the next before each gene name
